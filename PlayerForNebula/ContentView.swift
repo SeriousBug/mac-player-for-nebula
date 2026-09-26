@@ -25,9 +25,7 @@ struct ContentView: View {
             case .loading:
                 ProgressView()
             case .loaded(let episodes):
-                List(episodes) { episode in
-                    Text("\(episode.title) · \(episode.channelTitle) · \(episode.publishedAt)")
-                }
+                VideoGrid(episodes: episodes)
             case .failed(let message):
                 Text(message)
             }

@@ -28,8 +28,18 @@ enum NebulaAPI {
         var request = URLRequest(url: components.url!)
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         let data = try await send(request)
-        return (try JSONDecoder().decode(Response.self, from: data).results, data)
+        return (try decoder.decode(Response.self, from: data).results, data)
     }
+
+    private static let decoder: JSONDecoder = {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .custom { decoder in
+            let string = try decoder.singleValueContainer().decode(String.self)
+            if let date = try? Date(string, strategy: .iso8601) { return date }
+            return try Date(string, strategy: Date.ISO8601FormatStyle(includingFractionalSeconds: true))
+        }
+        return decoder
+    }()
 
     private static func send(_ request: URLRequest) async throws -> Data {
         let (data, response) = try await URLSession.shared.data(for: request)
@@ -43,10 +53,24 @@ struct VideoEpisode: Decodable, Identifiable {
     let id: String
     let title: String
     let channelTitle: String
-    let publishedAt: String
+    let publishedAt: Date
+    let images: Images
+
+    struct Images: Decodable {
+        let thumbnail: Image
+    }
+
+    struct Image: Decodable {
+        let src: URL
+
+        /// images.nebula.tv resizes on the server, so request a size that fits the display instead of the original.
+        func url(width: Int) -> URL {
+            src.appending(queryItems: [URLQueryItem(name: "width", value: String(width))])
+        }
+    }
 
     enum CodingKeys: String, CodingKey {
-        case id, title
+        case id, title, images
         case channelTitle = "channel_title"
         case publishedAt = "published_at"
     }
