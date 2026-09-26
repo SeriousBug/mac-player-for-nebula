@@ -1,9 +1,9 @@
 import SwiftUI
+import WebKit
 
 struct ContentView: View {
     var body: some View {
-        Text("Player for Nebula")
-            .font(.largeTitle)
+        WebView(url: URL(string: "https://nebula.tv"))
             .frame(minWidth: 800, minHeight: 500)
     }
 }
