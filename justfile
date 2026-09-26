@@ -13,6 +13,7 @@ build configuration="Debug": generate
 
 run configuration="Debug": (build configuration)
     -pkill -x "{{app_name}}"
+    while pgrep -x "{{app_name}}" >/dev/null; do sleep 0.1; done
     open "{{derived}}/Build/Products/{{configuration}}/{{app_name}}.app"
 
 open: generate
