@@ -174,6 +174,9 @@ private final class ChannelModel {
     private var hasMore = true
     /// Bumped whenever the filter changes, so a page that was requested for the old filter is dropped.
     private var generation = 0
+    /// Set after a filter change. The old episodes stay visible until the first page for the new filter arrives,
+    /// so the grid doesn't collapse and reset the scroll position.
+    private var replacesEpisodes = false
 
     func load(slug: String, session: NebulaSession) async {
         guard channel == nil else { return }
@@ -207,13 +210,22 @@ private final class ChannelModel {
                 try await NebulaAPI.channelEpisodes(channelID: channel.id, exclusivity: filter, pageURL: pageURL, token: $0)
             }
             guard generation == self.generation else { return }
-            episodes += page.results
+            if replacesEpisodes {
+                episodes = page.results
+                replacesEpisodes = false
+            } else {
+                episodes += page.results
+            }
             nextPage = page.next
             hasMore = page.next != nil
         } catch NebulaSession.Error.signedOut {
             return
         } catch {
             guard generation == self.generation else { return }
+            if replacesEpisodes {
+                episodes = []
+                replacesEpisodes = false
+            }
             logger.error("Loading episodes failed: \(error, privacy: .public)")
             episodesErrorMessage = "Couldn't load videos: \(error.localizedDescription)"
         }
@@ -222,7 +234,7 @@ private final class ChannelModel {
     func toggleFilter(_ exclusivity: Exclusivity, session: NebulaSession) async {
         filter.formSymmetricDifference([exclusivity])
         generation += 1
-        episodes = []
+        replacesEpisodes = true
         nextPage = nil
         hasMore = true
         isLoadingEpisodes = false
