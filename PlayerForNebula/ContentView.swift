@@ -8,7 +8,7 @@ struct ContentView: View {
     enum Phase {
         case signingIn
         case loading
-        case loaded([VideoEpisode])
+        case loaded([VideoEpisode], token: String)
         case failed(String)
     }
 
@@ -24,8 +24,14 @@ struct ContentView: View {
                 }
             case .loading:
                 ProgressView()
-            case .loaded(let episodes):
-                VideoGrid(episodes: episodes)
+            case .loaded(let episodes, let token):
+                NavigationStack {
+                    VideoGrid(episodes: episodes)
+                        .navigationDestination(for: VideoEpisode.self) { episode in
+                            PlayerView(url: NebulaAPI.manifestURL(episodeID: episode.id, token: token))
+                                .navigationTitle(episode.title)
+                        }
+                }
             case .failed(let message):
                 Text(message)
             }
@@ -38,7 +44,7 @@ struct ContentView: View {
             let token = try await NebulaAPI.authorize(apiKey: apiKey)
             let (episodes, raw) = try await NebulaAPI.latestFollowedEpisodes(token: token)
             logger.info("video_episodes response structure:\n\(jsonStructure(raw), privacy: .public)")
-            phase = .loaded(episodes)
+            phase = .loaded(episodes, token: token)
         } catch {
             logger.error("Loading episodes failed: \(error, privacy: .public)")
             phase = .failed("Couldn't load videos: \(error.localizedDescription)")

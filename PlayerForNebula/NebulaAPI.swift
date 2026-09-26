@@ -31,6 +31,18 @@ enum NebulaAPI {
         return (try decoder.decode(Response.self, from: data).results, data)
     }
 
+    /// Redirects to a signed HLS playlist on starlight.nebula.tv. The content API expects the JWT
+    /// in the query here because the player requests the playlist without custom headers.
+    static func manifestURL(episodeID: String, token: String) -> URL {
+        var components = URLComponents(string: "https://content.api.nebula.app/video_episodes/\(episodeID)/manifest.m3u8")!
+        components.queryItems = [
+            URLQueryItem(name: "token", value: token),
+            URLQueryItem(name: "platform", value: "web"),
+            URLQueryItem(name: "all_manifest", value: "true"),
+        ]
+        return components.url!
+    }
+
     private static let decoder: JSONDecoder = {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .custom { decoder in
@@ -49,18 +61,18 @@ enum NebulaAPI {
     }
 }
 
-struct VideoEpisode: Decodable, Identifiable {
+struct VideoEpisode: Decodable, Identifiable, Hashable {
     let id: String
     let title: String
     let channelTitle: String
     let publishedAt: Date
     let images: Images
 
-    struct Images: Decodable {
+    struct Images: Decodable, Hashable {
         let thumbnail: Image
     }
 
-    struct Image: Decodable {
+    struct Image: Decodable, Hashable {
         let src: URL
 
         /// images.nebula.tv resizes on the server, so request a size that fits the display instead of the original.

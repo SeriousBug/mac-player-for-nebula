@@ -7,7 +7,10 @@ struct VideoGrid: View {
         ScrollView {
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 260), spacing: 20, alignment: .top)], spacing: 28) {
                 ForEach(episodes) { episode in
-                    VideoCard(episode: episode)
+                    NavigationLink(value: episode) {
+                        VideoCard(episode: episode)
+                    }
+                    .buttonStyle(.plain)
                 }
             }
             .padding(20)
