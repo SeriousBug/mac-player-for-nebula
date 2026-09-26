@@ -5,46 +5,60 @@ import WebKit
 private let logger = Logger(subsystem: "com.example.PlayerForNebula", category: "Auth")
 
 struct ContentView: View {
-    enum Phase {
-        case signingIn
-        case loading
-        case loaded([VideoEpisode], token: String)
-        case failed(String)
-    }
-
-    @State private var phase = Phase.signingIn
+    @Environment(NebulaSession.self) private var session
 
     var body: some View {
         Group {
-            switch phase {
-            case .signingIn:
+            if session.isSignedIn {
+                LibraryView()
+            } else {
                 SignInView { apiKey in
-                    phase = .loading
-                    Task { await loadEpisodes(apiKey: apiKey) }
+                    session.signIn(apiKey: apiKey)
                 }
-            case .loading:
-                ProgressView()
-            case .loaded(let episodes, let token):
-                NavigationStack {
-                    VideoGrid(episodes: episodes)
-                        .navigationDestination(for: VideoEpisode.self) { episode in
-                            PlayerView(url: NebulaAPI.manifestURL(episodeID: episode.id, token: token))
-                                .navigationTitle(episode.title)
-                        }
-                }
-            case .failed(let message):
-                Text(message)
             }
         }
         .frame(minWidth: 800, minHeight: 500)
     }
+}
 
-    private func loadEpisodes(apiKey: String) async {
+private struct LibraryView: View {
+    enum Phase {
+        case loading
+        case loaded([VideoEpisode])
+        case failed(String)
+    }
+
+    @Environment(NebulaSession.self) private var session
+    @State private var phase = Phase.loading
+
+    var body: some View {
+        switch phase {
+        case .loading:
+            ProgressView()
+                .task { await loadEpisodes() }
+        case .loaded(let episodes):
+            NavigationStack {
+                VideoGrid(episodes: episodes)
+                    .navigationDestination(for: VideoEpisode.self) { episode in
+                        PlayerView(episode: episode)
+                            .navigationTitle(episode.title)
+                    }
+            }
+        case .failed(let message):
+            VStack {
+                Text(message)
+                Button("Try Again") { phase = .loading }
+            }
+        }
+    }
+
+    private func loadEpisodes() async {
         do {
-            let token = try await NebulaAPI.authorize(apiKey: apiKey)
-            let (episodes, raw) = try await NebulaAPI.latestFollowedEpisodes(token: token)
+            let (episodes, raw) = try await session.withToken(NebulaAPI.latestFollowedEpisodes)
             logger.info("video_episodes response structure:\n\(jsonStructure(raw), privacy: .public)")
-            phase = .loaded(episodes, token: token)
+            phase = .loaded(episodes)
+        } catch NebulaSession.Error.signedOut {
+            return
         } catch {
             logger.error("Loading episodes failed: \(error, privacy: .public)")
             phase = .failed("Couldn't load videos: \(error.localizedDescription)")
@@ -96,4 +110,5 @@ private struct SignInView: View {
 
 #Preview {
     ContentView()
+        .environment(NebulaSession())
 }
