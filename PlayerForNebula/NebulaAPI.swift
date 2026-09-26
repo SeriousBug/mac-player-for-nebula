@@ -96,6 +96,12 @@ struct VideoEpisode: Decodable, Identifiable, Hashable {
 
     struct Images: Decodable, Hashable {
         let thumbnail: Image
+        let channelAvatar: Image?
+
+        enum CodingKeys: String, CodingKey {
+            case thumbnail
+            case channelAvatar = "channel_avatar"
+        }
     }
 
     struct Image: Decodable, Hashable {
