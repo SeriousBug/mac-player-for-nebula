@@ -43,6 +43,9 @@ private struct LibraryView: View {
                         PlayerView(episode: episode)
                             .navigationTitle(episode.title)
                     }
+                    .navigationDestination(for: ChannelRoute.self) { route in
+                        ChannelView(slug: route.slug)
+                    }
             }
         case .failed(let message):
             VStack {

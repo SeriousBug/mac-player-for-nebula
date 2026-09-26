@@ -1,7 +1,16 @@
 import SwiftUI
 
-struct VideoGrid: View {
+struct ChannelRoute: Hashable {
+    let slug: String
+}
+
+struct VideoGrid<Header: View, Footer: View>: View {
     let episodes: [VideoEpisode]
+    var showsChannel = true
+    /// Called when the last video scrolls into view.
+    var onReachEnd: (() -> Void)?
+    @ViewBuilder var header: Header
+    @ViewBuilder var footer: Footer
 
     private let minCardWidth: CGFloat = 260
     private let maxCardWidth: CGFloat = 480
@@ -12,16 +21,20 @@ struct VideoGrid: View {
 
     var body: some View {
         ScrollView {
-            LazyVGrid(
-                columns: Array(repeating: GridItem(.flexible(), spacing: spacing, alignment: .top), count: columnCount),
-                spacing: 28
-            ) {
-                ForEach(episodes) { episode in
-                    NavigationLink(value: episode) {
-                        VideoCard(episode: episode)
+            VStack(alignment: .leading, spacing: 28) {
+                header
+                LazyVGrid(
+                    columns: Array(repeating: GridItem(.flexible(), spacing: spacing, alignment: .top), count: columnCount),
+                    spacing: 28
+                ) {
+                    ForEach(episodes) { episode in
+                        VideoCard(episode: episode, showsChannel: showsChannel)
+                            .onAppear {
+                                if episode.id == episodes.last?.id { onReachEnd?() }
+                            }
                     }
-                    .buttonStyle(.plain)
                 }
+                footer
             }
             .frame(maxWidth: CGFloat(maxColumns) * maxCardWidth + CGFloat(maxColumns - 1) * spacing)
             .padding(spacing)
@@ -34,44 +47,82 @@ struct VideoGrid: View {
     }
 }
 
+extension VideoGrid where Header == EmptyView, Footer == EmptyView {
+    init(episodes: [VideoEpisode]) {
+        self.init(episodes: episodes, header: { EmptyView() }, footer: { EmptyView() })
+    }
+}
+
 private struct VideoCard: View {
     let episode: VideoEpisode
+    let showsChannel: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Rectangle()
-                .fill(.quaternary)
-                .aspectRatio(16 / 9, contentMode: .fit)
-                .overlay {
-                    AsyncImage(url: episode.images.thumbnail.url(width: 960)) { image in
-                        image.resizable().scaledToFill()
-                    } placeholder: {
-                        EmptyView()
-                    }
+            NavigationLink(value: episode) {
+                VStack(alignment: .leading, spacing: 8) {
+                    thumbnail
+                    Text(episode.title)
+                        .font(.headline)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
                 }
-                .clipShape(.rect(cornerRadius: 8))
-
-            Text(episode.title)
-                .font(.headline)
-                .lineLimit(2)
+            }
+            .buttonStyle(.plain)
 
             HStack(spacing: 6) {
-                if let avatar = episode.images.channelAvatar {
-                    AsyncImage(url: avatar.url(width: 64)) { image in
-                        image.resizable().scaledToFill()
-                    } placeholder: {
-                        Circle().fill(.quaternary)
+                if showsChannel {
+                    NavigationLink(value: ChannelRoute(slug: episode.channelSlug)) {
+                        HStack(spacing: 6) {
+                            if let avatar = episode.images.channelAvatar {
+                                AsyncImage(url: avatar.url(width: 64)) { image in
+                                    image.resizable().scaledToFill()
+                                } placeholder: {
+                                    Circle().fill(.quaternary)
+                                }
+                                .frame(width: 20, height: 20)
+                                .clipShape(.circle)
+                            }
+                            Text(episode.channelTitle)
+                                .lineLimit(1)
+                        }
                     }
-                    .frame(width: 20, height: 20)
-                    .clipShape(.circle)
+                    .buttonStyle(.plain)
                 }
-                Text(episode.channelTitle)
-                    .lineLimit(1)
                 Spacer()
                 Text(episode.publishedAt, format: .dateTime.day().month().year())
             }
             .font(.subheadline)
             .foregroundStyle(.secondary)
         }
+    }
+
+    private var thumbnail: some View {
+        Rectangle()
+            .fill(.quaternary)
+            .aspectRatio(16 / 9, contentMode: .fit)
+            .overlay {
+                AsyncImage(url: episode.images.thumbnail.url(width: 960)) { image in
+                    image.resizable().scaledToFill()
+                } placeholder: {
+                    EmptyView()
+                }
+            }
+            .overlay(alignment: .bottomTrailing) {
+                HStack(spacing: 3) {
+                    if let exclusivity = episode.exclusivity {
+                        ExclusivityIcon(exclusivity: exclusivity, size: 13)
+                    }
+                    Text(Duration.seconds(episode.duration), format: .time(pattern: episode.duration >= 3600 ? .hourMinuteSecond : .minuteSecond))
+                        .monospacedDigit()
+                }
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 5)
+                .padding(.vertical, 2)
+                .background(.black.opacity(0.7), in: .rect(cornerRadius: 4))
+                .padding(6)
+            }
+            .clipShape(.rect(cornerRadius: 8))
     }
 }
