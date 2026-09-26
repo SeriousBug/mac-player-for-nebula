@@ -77,6 +77,38 @@ enum NebulaAPI {
         return try await decoder.decode(ChannelPage.self, from: send(request))
     }
 
+    /// Pass `page.next` from the previous result as `pageURL` to load the following page.
+    static func watchLater(pageURL: URL? = nil, token: String) async throws -> EpisodePage {
+        let url = pageURL ?? {
+            var components = URLComponents(string: "https://content.api.nebula.app/user_playlists/watch-later/video_episodes/")!
+            components.queryItems = [
+                URLQueryItem(name: "ordering", value: "-added_to_playlist"),
+                URLQueryItem(name: "page_size", value: "24"),
+            ]
+            return components.url!
+        }()
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        return try await decoder.decode(EpisodePage.self, from: send(request))
+    }
+
+    /// Videos the user has started, most recently watched first.
+    /// Pass `page.next` from the previous result as `pageURL` to load the following page.
+    static func watchHistory(pageURL: URL? = nil, token: String) async throws -> EpisodePage {
+        let url = pageURL ?? {
+            var components = URLComponents(string: "https://content.api.nebula.app/video_episodes/")!
+            components.queryItems = [
+                URLQueryItem(name: "progress", value: "any_progress"),
+                URLQueryItem(name: "ordering", value: "-progress"),
+                URLQueryItem(name: "page_size", value: "24"),
+            ]
+            return components.url!
+        }()
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        return try await decoder.decode(EpisodePage.self, from: send(request))
+    }
+
     static func isFollowing(channelID: String, token: String) async throws -> Bool {
         struct Engagement: Decodable { let id: String; let following: Bool }
         struct Response: Decodable { let results: [Engagement] }

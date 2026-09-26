@@ -36,6 +36,18 @@ private struct LibraryView: View {
                         .libraryDestinations()
                 }
             }
+            Tab("Watch Later", systemImage: "clock") {
+                NavigationStack {
+                    EpisodeListView(emptyMessage: "No videos saved to watch later", loadPage: NebulaAPI.watchLater)
+                        .libraryDestinations()
+                }
+            }
+            Tab("Watch History", systemImage: "clock.arrow.circlepath") {
+                NavigationStack {
+                    EpisodeListView(emptyMessage: "No watched videos yet", loadPage: NebulaAPI.watchHistory)
+                        .libraryDestinations()
+                }
+            }
         }
         .tabViewStyle(.sidebarAdaptable)
     }
