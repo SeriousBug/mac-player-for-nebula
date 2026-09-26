@@ -22,6 +22,37 @@ struct ContentView: View {
 }
 
 private struct LibraryView: View {
+    var body: some View {
+        TabView {
+            Tab("Latest Videos", systemImage: "play.rectangle") {
+                NavigationStack {
+                    LatestVideosView()
+                        .libraryDestinations()
+                }
+            }
+            Tab("Followed Channels", systemImage: "person.2") {
+                NavigationStack {
+                    FollowedChannelsView()
+                        .libraryDestinations()
+                }
+            }
+        }
+    }
+}
+
+private extension View {
+    func libraryDestinations() -> some View {
+        navigationDestination(for: VideoEpisode.self) { episode in
+            PlayerView(episode: episode)
+                .navigationTitle(episode.title)
+        }
+        .navigationDestination(for: ChannelRoute.self) { route in
+            ChannelView(slug: route.slug)
+        }
+    }
+}
+
+private struct LatestVideosView: View {
     enum Phase {
         case loading
         case loaded([VideoEpisode])
@@ -35,23 +66,16 @@ private struct LibraryView: View {
         switch phase {
         case .loading:
             ProgressView()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .task { await loadEpisodes() }
         case .loaded(let episodes):
-            NavigationStack {
-                VideoGrid(episodes: episodes)
-                    .navigationDestination(for: VideoEpisode.self) { episode in
-                        PlayerView(episode: episode)
-                            .navigationTitle(episode.title)
-                    }
-                    .navigationDestination(for: ChannelRoute.self) { route in
-                        ChannelView(slug: route.slug)
-                    }
-            }
+            VideoGrid(episodes: episodes)
         case .failed(let message):
             VStack {
                 Text(message)
                 Button("Try Again") { phase = .loading }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 

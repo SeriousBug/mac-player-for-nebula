@@ -57,6 +57,26 @@ enum NebulaAPI {
         return try await decoder.decode(EpisodePage.self, from: send(request))
     }
 
+    /// Pass `page.next` from the previous result as `pageURL` to load the following page.
+    static func followedChannels(
+        ordering: FollowedChannelsOrdering,
+        pageURL: URL? = nil,
+        token: String
+    ) async throws -> ChannelPage {
+        let url = pageURL ?? {
+            var components = URLComponents(string: "https://content.api.nebula.app/video_channels/")!
+            components.queryItems = [
+                URLQueryItem(name: "following", value: "true"),
+                URLQueryItem(name: "ordering", value: ordering.rawValue),
+                URLQueryItem(name: "page_size", value: "24"),
+            ]
+            return components.url!
+        }()
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        return try await decoder.decode(ChannelPage.self, from: send(request))
+    }
+
     static func isFollowing(channelID: String, token: String) async throws -> Bool {
         struct Engagement: Decodable { let id: String; let following: Bool }
         struct Response: Decodable { let results: [Engagement] }
@@ -193,11 +213,31 @@ struct EpisodePage: Decodable {
     let next: URL?
 }
 
-struct Channel: Decodable {
+enum FollowedChannelsOrdering: String, CaseIterable {
+    case recentlyFollowed = "-follow"
+    case latestActivity = "-episode_published"
+    case alphabetical = "title"
+
+    var title: String {
+        switch self {
+        case .recentlyFollowed: "Recently Followed"
+        case .latestActivity: "Latest Activity"
+        case .alphabetical: "Alphabetical"
+        }
+    }
+}
+
+struct ChannelPage: Decodable {
+    let results: [Channel]
+    let next: URL?
+}
+
+struct Channel: Decodable, Identifiable {
     let id: String
     let slug: String
     let title: String
     let description: String
+    let genre: String?
     let exclusivity: [Exclusivity]
     let images: Images
     let links: [Link]
@@ -205,6 +245,7 @@ struct Channel: Decodable {
     struct Images: Decodable {
         let avatar: NebulaImage?
         let banner: NebulaImage?
+        let featured: NebulaImage?
     }
 
     struct Link: Identifiable {
@@ -215,6 +256,7 @@ struct Channel: Decodable {
 
     private enum CodingKeys: String, CodingKey {
         case id, slug, title, description, exclusivity, images
+        case genre = "genre_category_title"
         case twitter, bluesky, instagram, facebook, reddit, patreon, website, merch
     }
 
@@ -224,6 +266,7 @@ struct Channel: Decodable {
         slug = try container.decode(String.self, forKey: .slug)
         title = try container.decode(String.self, forKey: .title)
         description = try container.decodeIfPresent(String.self, forKey: .description) ?? ""
+        genre = try container.decodeIfPresent(String.self, forKey: .genre)
         // Unknown values would fail the whole channel, and the filter can't be offered for them anyway.
         exclusivity = (try container.decodeIfPresent([String].self, forKey: .exclusivity) ?? []).compactMap(Exclusivity.init)
         images = try container.decode(Images.self, forKey: .images)

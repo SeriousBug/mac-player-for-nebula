@@ -12,9 +12,31 @@ struct VideoGrid<Header: View, Footer: View>: View {
     @ViewBuilder var header: Header
     @ViewBuilder var footer: Footer
 
-    private let minCardWidth: CGFloat = 260
-    private let maxCardWidth: CGFloat = 480
-    private let maxColumns = 3
+    var body: some View {
+        CardGrid(
+            items: episodes,
+            minCardWidth: 260,
+            maxCardWidth: 480,
+            maxColumns: 3,
+            onReachEnd: onReachEnd,
+            card: { VideoCard(episode: $0, showsChannel: showsChannel) },
+            header: { header },
+            footer: { footer }
+        )
+    }
+}
+
+struct CardGrid<Item: Identifiable, Card: View, Header: View, Footer: View>: View {
+    let items: [Item]
+    let minCardWidth: CGFloat
+    let maxCardWidth: CGFloat
+    let maxColumns: Int
+    /// Called when the last item scrolls into view.
+    var onReachEnd: (() -> Void)?
+    @ViewBuilder var card: (Item) -> Card
+    @ViewBuilder var header: Header
+    @ViewBuilder var footer: Footer
+
     private let spacing: CGFloat = 20
 
     @State private var columnCount = 1
@@ -27,10 +49,10 @@ struct VideoGrid<Header: View, Footer: View>: View {
                     columns: Array(repeating: GridItem(.flexible(), spacing: spacing, alignment: .top), count: columnCount),
                     spacing: 28
                 ) {
-                    ForEach(episodes) { episode in
-                        VideoCard(episode: episode, showsChannel: showsChannel)
+                    ForEach(items) { item in
+                        card(item)
                             .onAppear {
-                                if episode.id == episodes.last?.id { onReachEnd?() }
+                                if item.id == items.last?.id { onReachEnd?() }
                             }
                     }
                 }
