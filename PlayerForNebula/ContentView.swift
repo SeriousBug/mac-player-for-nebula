@@ -22,6 +22,8 @@ struct ContentView: View {
 }
 
 private struct LibraryView: View {
+    @Environment(WatchLaterStore.self) private var watchLaterStore
+
     var body: some View {
         TabView {
             Tab("Latest Videos", systemImage: "play.rectangle") {
@@ -38,7 +40,11 @@ private struct LibraryView: View {
             }
             Tab("Watch Later", systemImage: "clock") {
                 NavigationStack {
-                    EpisodeListView(emptyMessage: "No videos saved to watch later", loadPage: NebulaAPI.watchLater)
+                    EpisodeListView(
+                        emptyMessage: "No videos saved to watch later",
+                        version: watchLaterStore.version,
+                        loadPage: NebulaAPI.watchLater
+                    )
                         .libraryDestinations()
                 }
             }

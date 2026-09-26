@@ -138,6 +138,38 @@ enum NebulaAPI {
         return response.results.first { $0.id == episodeID }?.progress
     }
 
+    /// Returns whether each episode is in the watch later list, keyed by episode ID.
+    static func watchLaterStates(episodeIDs: [String], token: String) async throws -> [String: Bool] {
+        struct Engagement: Decodable {
+            let id: String
+            let watchLater: Bool
+
+            enum CodingKeys: String, CodingKey {
+                case id
+                case watchLater = "watch_later"
+            }
+        }
+        struct Response: Decodable { let results: [Engagement] }
+        var components = URLComponents(string: "https://content.api.nebula.app/video_episodes/engagement/")!
+        components.queryItems = [
+            URLQueryItem(name: "ids", value: episodeIDs.joined(separator: ",")),
+            URLQueryItem(name: "page_size", value: String(episodeIDs.count)),
+        ]
+        var request = URLRequest(url: components.url!)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        let response = try await decoder.decode(Response.self, from: send(request))
+        return Dictionary(response.results.map { ($0.id, $0.watchLater) }, uniquingKeysWith: { first, _ in first })
+    }
+
+    static func setInWatchLater(_ inWatchLater: Bool, episodeID: String, token: String) async throws {
+        var request = URLRequest(url: URL(string: "https://content.api.nebula.app/user_playlists/watch-later/video_episodes/")!)
+        request.httpMethod = inWatchLater ? "POST" : "DELETE"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONEncoder().encode(["id": episodeID])
+        _ = try await send(request)
+    }
+
     static func saveProgress(episodeID: String, seconds: Int, token: String) async throws {
         var request = URLRequest(url: URL(string: "https://content.api.nebula.app/video_episodes/\(episodeID)/progress/")!)
         request.httpMethod = "PATCH"

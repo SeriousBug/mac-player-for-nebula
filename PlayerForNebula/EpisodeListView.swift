@@ -8,6 +8,8 @@ struct EpisodeListView: View {
     typealias LoadPage = (_ pageURL: URL?, _ token: String) async throws -> EpisodePage
 
     let emptyMessage: String
+    /// Changing this marks the loaded videos as stale, so they are reloaded the next time the list appears.
+    var version = 0
     let loadPage: LoadPage
 
     @Environment(NebulaSession.self) private var session
@@ -22,13 +24,13 @@ struct EpisodeListView: View {
         )
         .toolbar {
             Button("Refresh", systemImage: "arrow.clockwise") {
-                Task { await model.reload(loadPage, session: session) }
+                Task { await model.reload(loadPage, version: version, session: session) }
             }
             .keyboardShortcut("r")
         }
-        .task {
-            guard !model.hasLoaded else { return }
-            await model.reload(loadPage, session: session)
+        .onAppear {
+            guard model.loadedVersion != version else { return }
+            Task { await model.reload(loadPage, version: version, session: session) }
         }
     }
 
@@ -56,15 +58,15 @@ private final class EpisodeListModel {
     private(set) var episodes: [VideoEpisode] = []
     private(set) var isLoading = false
     private(set) var errorMessage: String?
-    private(set) var hasLoaded = false
+    private(set) var loadedVersion: Int?
 
     private var nextPage: URL?
     private var hasMore = true
     /// Bumped on every reload, so a page that was requested before it is dropped.
     private var generation = 0
 
-    func reload(_ loadPage: EpisodeListView.LoadPage, session: NebulaSession) async {
-        hasLoaded = true
+    func reload(_ loadPage: EpisodeListView.LoadPage, version: Int, session: NebulaSession) async {
+        loadedVersion = version
         generation += 1
         episodes = []
         nextPage = nil

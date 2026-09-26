@@ -12,6 +12,9 @@ struct VideoGrid<Header: View, Footer: View>: View {
     @ViewBuilder var header: Header
     @ViewBuilder var footer: Footer
 
+    @Environment(NebulaSession.self) private var session
+    @Environment(WatchLaterStore.self) private var watchLaterStore
+
     var body: some View {
         CardGrid(
             items: episodes,
@@ -23,6 +26,9 @@ struct VideoGrid<Header: View, Footer: View>: View {
             header: { header },
             footer: { footer }
         )
+        .task(id: episodes.map(\.id)) {
+            await watchLaterStore.loadStates(for: episodes.map(\.id), session: session)
+        }
     }
 }
 
@@ -116,6 +122,9 @@ private struct VideoCard: View {
             }
             .font(.subheadline)
             .foregroundStyle(.secondary)
+        }
+        .contextMenu {
+            WatchLaterButton(episodeID: episode.id)
         }
     }
 

@@ -8,6 +8,7 @@ struct PlayerView: View {
     let episode: VideoEpisode
 
     @Environment(NebulaSession.self) private var session
+    @Environment(WatchLaterStore.self) private var watchLaterStore
     @State private var model = PlayerModel()
 
     var body: some View {
@@ -20,6 +21,10 @@ struct PlayerView: View {
                 ProgressView()
             }
         }
+        .toolbar {
+            WatchLaterButton(episodeID: episode.id)
+        }
+        .task { await watchLaterStore.loadStates(for: [episode.id], session: session) }
         .task { await model.play(episode: episode, session: session) }
         .onDisappear { model.stop() }
     }
