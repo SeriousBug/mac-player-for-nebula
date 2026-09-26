@@ -16,5 +16,8 @@ struct PlayerForNebulaApp: App {
                 .environment(exclusivityIcons)
                 .task { await exclusivityIcons.load() }
         }
+        Settings {
+            SettingsView()
+        }
     }
 }

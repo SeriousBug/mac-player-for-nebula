@@ -21,24 +21,51 @@ struct ContentView: View {
     }
 }
 
+enum LibraryTab: String, CaseIterable {
+    case latestVideos
+    case followedChannels
+    case watchLater
+    case watchHistory
+
+    var title: LocalizedStringKey {
+        switch self {
+        case .latestVideos: "Latest Videos"
+        case .followedChannels: "Followed Channels"
+        case .watchLater: "Watch Later"
+        case .watchHistory: "Watch History"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .latestVideos: "play.rectangle"
+        case .followedChannels: "person.2"
+        case .watchLater: "clock"
+        case .watchHistory: "clock.arrow.circlepath"
+        }
+    }
+}
+
 private struct LibraryView: View {
     @Environment(WatchLaterStore.self) private var watchLaterStore
+    @AppStorage("startupTab") private var startupTab = LibraryTab.latestVideos
+    @State private var selectedTab: LibraryTab?
 
     var body: some View {
-        TabView {
-            Tab("Latest Videos", systemImage: "play.rectangle") {
+        TabView(selection: Binding { selectedTab ?? startupTab } set: { selectedTab = $0 }) {
+            tab(.latestVideos) {
                 NavigationStack {
                     LatestVideosView()
                         .libraryDestinations()
                 }
             }
-            Tab("Followed Channels", systemImage: "person.2") {
+            tab(.followedChannels) {
                 NavigationStack {
                     FollowedChannelsView()
                         .libraryDestinations()
                 }
             }
-            Tab("Watch Later", systemImage: "clock") {
+            tab(.watchLater) {
                 NavigationStack {
                     EpisodeListView(
                         emptyMessage: "No videos saved to watch later",
@@ -48,7 +75,7 @@ private struct LibraryView: View {
                         .libraryDestinations()
                 }
             }
-            Tab("Watch History", systemImage: "clock.arrow.circlepath") {
+            tab(.watchHistory) {
                 NavigationStack {
                     EpisodeListView(emptyMessage: "No watched videos yet", loadPage: NebulaAPI.watchHistory)
                         .libraryDestinations()
@@ -56,6 +83,10 @@ private struct LibraryView: View {
             }
         }
         .tabViewStyle(.sidebarAdaptable)
+    }
+
+    private func tab(_ tab: LibraryTab, @ViewBuilder content: () -> some View) -> some TabContent<LibraryTab> {
+        Tab(tab.title, systemImage: tab.systemImage, value: tab, content: content)
     }
 }
 
