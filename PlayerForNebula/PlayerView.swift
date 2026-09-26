@@ -15,13 +15,32 @@ struct PlayerView: View {
             if let errorMessage = model.errorMessage {
                 Text(errorMessage)
             } else if model.isLoaded {
-                VideoPlayer(player: model.player)
+                AVPlayerViewRepresentable(player: model.player)
             } else {
                 ProgressView()
             }
         }
         .task { await model.play(episode: episode, session: session) }
         .onDisappear { model.stop() }
+    }
+}
+
+/// Wraps AppKit's AVPlayerView. SwiftUI's VideoPlayer aborts while building its view on this
+/// macOS 27 build (`getSuperclassMetadata` in _AVKit_SwiftUI), and AVPlayerView has the native macOS controls anyway.
+private struct AVPlayerViewRepresentable: NSViewRepresentable {
+    let player: AVPlayer
+
+    func makeNSView(context: Context) -> AVPlayerView {
+        let view = AVPlayerView()
+        view.player = player
+        view.controlsStyle = .floating
+        view.allowsPictureInPicturePlayback = true
+        view.showsFullScreenToggleButton = true
+        return view
+    }
+
+    func updateNSView(_ view: AVPlayerView, context: Context) {
+        view.player = player
     }
 }
 
