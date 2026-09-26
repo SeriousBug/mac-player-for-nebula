@@ -16,6 +16,14 @@ struct PlayerForNebulaApp: App {
                 .environment(exclusivityIcons)
                 .task { await exclusivityIcons.load() }
         }
+        .commands {
+            CommandGroup(after: .appSettings) {
+                Button("Sign Out") {
+                    Task { await session.signOut() }
+                }
+                .disabled(!session.isSignedIn)
+            }
+        }
         Settings {
             SettingsView()
         }

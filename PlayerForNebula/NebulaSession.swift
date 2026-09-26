@@ -35,12 +35,13 @@ final class NebulaSession {
         token = nil
         refreshTask?.cancel()
         refreshTask = nil
-        isSignedIn = false
 
         let store = WKWebsiteDataStore.default()
         let types = WKWebsiteDataStore.allWebsiteDataTypes()
         let records = await store.dataRecords(ofTypes: types)
         await store.removeData(ofTypes: types, for: records.filter { $0.displayName.contains("nebula") })
+        // Showing the sign-in view before the cookie is gone would sign straight back in.
+        isSignedIn = false
     }
 
     /// Runs `operation` with a valid JWT. On an auth rejection it retries once with a fresh token,
