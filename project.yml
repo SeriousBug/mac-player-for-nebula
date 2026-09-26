@@ -1,0 +1,30 @@
+name: PlayerForNebula
+options:
+  bundleIdPrefix: com.example
+  deploymentTarget:
+    macOS: "26.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+targets:
+  PlayerForNebula:
+    type: application
+    platform: macOS
+    sources:
+      - PlayerForNebula
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.example.PlayerForNebula
+        PRODUCT_NAME: Player for Nebula
+        INFOPLIST_KEY_CFBundleDisplayName: Player for Nebula
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.entertainment
+        GENERATE_INFOPLIST_FILE: YES
+        CODE_SIGN_ENTITLEMENTS: PlayerForNebula/PlayerForNebula.entitlements
+        CODE_SIGN_STYLE: Manual
+        CODE_SIGN_IDENTITY: "-"
+        ENABLE_HARDENED_RUNTIME: YES
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
