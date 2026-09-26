@@ -21,7 +21,7 @@ struct PlayerView: View {
             }
         }
         .task { await model.play(episode: episode, session: session) }
-        .onDisappear { model.player.pause() }
+        .onDisappear { model.stop() }
     }
 }
 
@@ -37,16 +37,74 @@ private final class PlayerModel {
     private var episode: VideoEpisode?
     private var session: NebulaSession?
     private var lastReload = Date.distantPast
+    private var lastSavedSeconds: Int?
+    private var timeObserver: Any?
+    private var rateObserver: Task<Void, Never>?
 
     func play(episode: VideoEpisode, session: NebulaSession) async {
         guard self.episode == nil else { return }
         self.episode = episode
         self.session = session
-        guard let item = await makeItem() else { return }
+        async let item = makeItem()
+        async let progress = loadProgress()
+        guard let item = await item else { return }
         player.replaceCurrentItem(with: item)
+        if let progress = await progress, !progress.completed, progress.value > 0 {
+            lastSavedSeconds = progress.value
+            await player.seek(to: CMTime(seconds: Double(progress.value), preferredTimescale: 1))
+        }
         isLoaded = true
         player.play()
+        observeProgress()
         await watchForAuthErrors()
+    }
+
+    func stop() {
+        player.pause()
+        if let timeObserver {
+            player.removeTimeObserver(timeObserver)
+            self.timeObserver = nil
+        }
+        rateObserver?.cancel()
+        rateObserver = nil
+        saveProgress()
+    }
+
+    private func loadProgress() async -> Progress? {
+        guard let episode, let session else { return nil }
+        do {
+            return try await session.withToken { try await NebulaAPI.progress(episodeID: episode.id, token: $0) }
+        } catch {
+            logger.error("Loading progress failed: \(error, privacy: .public)")
+            return nil
+        }
+    }
+
+    /// Matches the web player, which saves every 15 seconds of playback and whenever playback pauses.
+    private func observeProgress() {
+        timeObserver = player.addPeriodicTimeObserver(forInterval: CMTime(seconds: 15, preferredTimescale: 1), queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.saveProgress() }
+        }
+        rateObserver = Task { [weak self, player] in
+            for await _ in NotificationCenter.default.notifications(named: AVPlayer.rateDidChangeNotification, object: player) {
+                guard let self else { return }
+                if player.rate == 0 { saveProgress() }
+            }
+        }
+    }
+
+    private func saveProgress() {
+        guard let episode, let session, player.currentItem?.status == .readyToPlay else { return }
+        let seconds = Int(player.currentTime().seconds.rounded(.down))
+        guard seconds != lastSavedSeconds else { return }
+        lastSavedSeconds = seconds
+        Task {
+            do {
+                try await session.withToken { try await NebulaAPI.saveProgress(episodeID: episode.id, seconds: seconds, token: $0) }
+            } catch {
+                logger.error("Saving progress failed: \(error, privacy: .public)")
+            }
+        }
     }
 
     private func makeItem() async -> AVPlayerItem? {

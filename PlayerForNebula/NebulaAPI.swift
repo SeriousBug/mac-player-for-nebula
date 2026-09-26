@@ -31,6 +31,26 @@ enum NebulaAPI {
         return (try decoder.decode(Response.self, from: data).results, data)
     }
 
+    static func progress(episodeID: String, token: String) async throws -> Progress? {
+        struct Engagement: Decodable { let id: String; let progress: Progress? }
+        struct Response: Decodable { let results: [Engagement] }
+        var components = URLComponents(string: "https://content.api.nebula.app/video_episodes/engagement/")!
+        components.queryItems = [URLQueryItem(name: "ids", value: episodeID)]
+        var request = URLRequest(url: components.url!)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        let response = try await decoder.decode(Response.self, from: send(request))
+        return response.results.first { $0.id == episodeID }?.progress
+    }
+
+    static func saveProgress(episodeID: String, seconds: Int, token: String) async throws {
+        var request = URLRequest(url: URL(string: "https://content.api.nebula.app/video_episodes/\(episodeID)/progress/")!)
+        request.httpMethod = "PATCH"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONEncoder().encode(["value": seconds])
+        _ = try await send(request)
+    }
+
     /// Redirects to a signed HLS playlist on starlight.nebula.tv. The content API expects the JWT
     /// in the query here because the player requests the playlist without custom headers.
     static func manifestURL(episodeID: String, token: String) -> URL {
@@ -59,6 +79,12 @@ enum NebulaAPI {
         guard (200..<300).contains(status) else { throw Error.badStatus(status, request.url!) }
         return data
     }
+}
+
+struct Progress: Decodable {
+    /// Playback position in seconds.
+    let value: Int
+    let completed: Bool
 }
 
 struct VideoEpisode: Decodable, Identifiable, Hashable {
