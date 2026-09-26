@@ -66,11 +66,14 @@ private struct LibraryView: View {
     }
 }
 
+/// Signs in with the saved Nebula cookie when there is one. Otherwise loads the login page out of sight
+/// and only reveals it if Nebula doesn't redirect away from it, which means the user has to log in.
 private struct SignInView: View {
     let onSignedIn: (String) -> Void
 
     @State private var dataStore: WKWebsiteDataStore
     @State private var page: WebPage
+    @State private var isLoginPageVisible = false
     @State private var didSignIn = false
 
     init(onSignedIn: @escaping (String) -> Void) {
@@ -83,24 +86,51 @@ private struct SignInView: View {
     }
 
     var body: some View {
-        WebView(page)
-            .onAppear {
-                page.load(URL(string: "https://nebula.tv/login"))
+        ZStack {
+            WebView(page)
+                .opacity(isLoginPageVisible ? 1 : 0)
+            if !isLoginPageVisible {
+                ProgressView()
             }
-            // Nebula's web app navigates client-side after login, so this relies on
-            // WebPage.url following history.pushState rather than on a page load.
-            .onChange(of: page.url) { _, url in
-                guard !didSignIn, url?.host() == "nebula.tv", url?.path() == "/featured" else { return }
+        }
+        .task {
+            if let apiKey = await savedAPIKey() {
+                logger.info("Signing in with saved cookie")
                 didSignIn = true
-                Task { await readAPIKey() }
+                onSignedIn(apiKey)
+                return
             }
+            page.load(URL(string: "https://nebula.tv/login"))
+        }
+        // Nebula's web app navigates client-side after login, so this relies on
+        // WebPage.url following history.pushState rather than on a page load.
+        .onChange(of: page.url) { _, url in
+            guard !didSignIn, url?.host() == "nebula.tv", url?.path() == "/featured" else { return }
+            didSignIn = true
+            Task { await finishSignIn() }
+        }
+        .onChange(of: page.isLoading) { _, isLoading in
+            guard !isLoading, !isLoginPageVisible else { return }
+            Task {
+                // A signed-in session redirects from /login client-side shortly after the page loads.
+                try? await Task.sleep(for: .seconds(1.5))
+                if !didSignIn, page.url?.path().hasPrefix("/login") == true {
+                    isLoginPageVisible = true
+                }
+            }
+        }
     }
 
-    private func readAPIKey() async {
+    private func savedAPIKey() async -> String? {
         let cookies = await dataStore.httpCookieStore.allCookies()
-        guard let apiKey = cookies.first(where: { $0.name == NebulaAPI.apiKeyCookieName && $0.domain.hasSuffix("nebula.tv") })?.value else {
+        return cookies.first { $0.name == NebulaAPI.apiKeyCookieName && $0.domain.hasSuffix("nebula.tv") }?.value
+    }
+
+    private func finishSignIn() async {
+        guard let apiKey = await savedAPIKey() else {
             logger.error("No \(NebulaAPI.apiKeyCookieName, privacy: .public) cookie after reaching /featured")
             didSignIn = false
+            isLoginPageVisible = true
             return
         }
         logger.info("Signed in, closing web view")
