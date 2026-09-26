@@ -37,6 +37,7 @@ private struct LibraryView: View {
                 }
             }
         }
+        .tabViewStyle(.sidebarAdaptable)
     }
 }
 
