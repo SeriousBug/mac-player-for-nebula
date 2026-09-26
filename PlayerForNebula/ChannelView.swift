@@ -55,6 +55,7 @@ private struct ChannelHeader: View {
     let model: ChannelModel
 
     @Environment(NebulaSession.self) private var session
+    @Environment(FollowStore.self) private var followStore
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -118,19 +119,20 @@ private struct ChannelHeader: View {
     }
 
     @ViewBuilder private var followButton: some View {
-        if let isFollowing = model.isFollowing {
+        if let isFollowing = followStore.isFollowing(channel.id) ?? model.isFollowing {
+            let isUpdating = followStore.updatingIDs.contains(channel.id)
             if isFollowing {
                 Button("Following", systemImage: "checkmark") {
-                    Task { await model.setFollowing(false, session: session) }
+                    Task { await followStore.setFollowing(false, channelID: channel.id, session: session) }
                 }
                 .buttonStyle(.bordered)
-                .disabled(model.isUpdatingFollow)
+                .disabled(isUpdating)
             } else {
                 Button("Follow", systemImage: "plus") {
-                    Task { await model.setFollowing(true, session: session) }
+                    Task { await followStore.setFollowing(true, channelID: channel.id, session: session) }
                 }
                 .buttonStyle(.borderedProminent)
-                .disabled(model.isUpdatingFollow)
+                .disabled(isUpdating)
             }
         }
     }
@@ -163,7 +165,6 @@ private final class ChannelModel {
     private(set) var channel: Channel?
     private(set) var errorMessage: String?
     private(set) var isFollowing: Bool?
-    private(set) var isUpdatingFollow = false
 
     private(set) var episodes: [VideoEpisode] = []
     private(set) var filter: Set<Exclusivity> = []
@@ -226,18 +227,6 @@ private final class ChannelModel {
         hasMore = true
         isLoadingEpisodes = false
         await loadMore(session: session)
-    }
-
-    func setFollowing(_ following: Bool, session: NebulaSession) async {
-        guard let channel else { return }
-        isUpdatingFollow = true
-        defer { isUpdatingFollow = false }
-        do {
-            try await session.withToken { try await NebulaAPI.setFollowing(following, channelID: channel.id, token: $0) }
-            isFollowing = following
-        } catch {
-            logger.error("Updating follow failed: \(error, privacy: .public)")
-        }
     }
 
     private func loadFollowing(channelID: String, session: NebulaSession) async {

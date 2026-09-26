@@ -5,6 +5,7 @@ private let logger = Logger(subsystem: "com.example.PlayerForNebula", category: 
 
 struct FollowedChannelsView: View {
     @Environment(NebulaSession.self) private var session
+    @Environment(FollowStore.self) private var followStore
     @State private var model = FollowedChannelsModel()
     @AppStorage("followedChannelsOrdering") private var ordering = FollowedChannelsOrdering.recentlyFollowed
 
@@ -29,7 +30,14 @@ struct FollowedChannelsView: View {
             }
             .pickerStyle(.menu)
         }
-        .task(id: ordering) { await model.reload(ordering: ordering, session: session) }
+        .onAppear(perform: reloadIfStale)
+        .onChange(of: ordering, reloadIfStale)
+    }
+
+    /// Follow changes made on a channel page don't show up in the loaded pages, so reload when returning from one.
+    private func reloadIfStale() {
+        guard model.ordering != ordering || model.loadedVersion != followStore.version else { return }
+        Task { await model.reload(ordering: ordering, version: followStore.version, session: session) }
     }
 
     @ViewBuilder private var footer: some View {
@@ -55,6 +63,7 @@ private struct ChannelCard: View {
     let model: FollowedChannelsModel
 
     @Environment(NebulaSession.self) private var session
+    @Environment(FollowStore.self) private var followStore
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -108,21 +117,25 @@ private struct ChannelCard: View {
     }
 
     @ViewBuilder private var followButton: some View {
-        let isUpdating = model.updatingIDs.contains(channel.id)
-        if model.unfollowedIDs.contains(channel.id) {
-            Button("Follow", systemImage: "plus") {
-                Task { await model.setFollowing(true, channelID: channel.id, session: session) }
-            }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.small)
-            .disabled(isUpdating)
+        let isUpdating = followStore.updatingIDs.contains(channel.id)
+        if followStore.isFollowing(channel.id) ?? true {
+            Button("Following", systemImage: "checkmark") { setFollowing(false) }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .disabled(isUpdating)
         } else {
-            Button("Following", systemImage: "checkmark") {
-                Task { await model.setFollowing(false, channelID: channel.id, session: session) }
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
-            .disabled(isUpdating)
+            Button("Follow", systemImage: "plus") { setFollowing(true) }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+                .disabled(isUpdating)
+        }
+    }
+
+    /// Unfollowed channels stay in the list so an accidental unfollow can be undone.
+    private func setFollowing(_ following: Bool) {
+        Task {
+            await followStore.setFollowing(following, channelID: channel.id, session: session)
+            model.loadedVersion = followStore.version
         }
     }
 }
@@ -133,21 +146,20 @@ private final class FollowedChannelsModel {
     private(set) var channels: [Channel] = []
     private(set) var isLoading = false
     private(set) var errorMessage: String?
-    /// Unfollowed channels stay in the list so an accidental unfollow can be undone.
-    private(set) var unfollowedIDs: Set<String> = []
-    private(set) var updatingIDs: Set<String> = []
+    private(set) var ordering: FollowedChannelsOrdering?
+    /// The `FollowStore.version` the loaded channels reflect.
+    var loadedVersion: Int?
 
-    private var ordering = FollowedChannelsOrdering.recentlyFollowed
     private var nextPage: URL?
     private var hasMore = true
-    /// Bumped whenever the ordering changes, so a page that was requested for the old ordering is dropped.
+    /// Bumped on every reload, so a page that was requested before it is dropped.
     private var generation = 0
 
-    func reload(ordering: FollowedChannelsOrdering, session: NebulaSession) async {
+    func reload(ordering: FollowedChannelsOrdering, version: Int, session: NebulaSession) async {
         self.ordering = ordering
+        loadedVersion = version
         generation += 1
         channels = []
-        unfollowedIDs = []
         nextPage = nil
         hasMore = true
         isLoading = false
@@ -156,11 +168,10 @@ private final class FollowedChannelsModel {
     }
 
     func loadMore(session: NebulaSession) async {
-        guard hasMore, !isLoading else { return }
+        guard let ordering, hasMore, !isLoading else { return }
         isLoading = true
         errorMessage = nil
         let generation = generation
-        let ordering = ordering
         let pageURL = nextPage
         defer {
             if generation == self.generation { isLoading = false }
@@ -179,21 +190,6 @@ private final class FollowedChannelsModel {
             guard generation == self.generation else { return }
             logger.error("Loading followed channels failed: \(error, privacy: .public)")
             errorMessage = "Couldn't load channels: \(error.localizedDescription)"
-        }
-    }
-
-    func setFollowing(_ following: Bool, channelID: String, session: NebulaSession) async {
-        updatingIDs.insert(channelID)
-        defer { updatingIDs.remove(channelID) }
-        do {
-            try await session.withToken { try await NebulaAPI.setFollowing(following, channelID: channelID, token: $0) }
-            if following {
-                unfollowedIDs.remove(channelID)
-            } else {
-                unfollowedIDs.insert(channelID)
-            }
-        } catch {
-            logger.error("Updating follow failed: \(error, privacy: .public)")
         }
     }
 }
