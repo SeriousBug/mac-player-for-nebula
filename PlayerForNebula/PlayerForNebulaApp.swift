@@ -22,7 +22,7 @@ struct PlayerForNebulaApp: App {
         }
         .commands {
             CommandGroup(after: .appInfo) {
-                Button("Check for Updates…") {
+                Button(updateChecker.isDownloading ? "Downloading Update…" : "Check for Updates…") {
                     Task { await updateChecker.check(userInitiated: true) }
                 }
                 .disabled(updateChecker.isChecking)

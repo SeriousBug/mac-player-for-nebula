@@ -22,8 +22,8 @@ final class UpdateChecker {
             tagName.hasPrefix("v") ? String(tagName.dropFirst()) : tagName
         }
 
-        var downloadURL: URL {
-            assets.first { $0.name.hasSuffix(".dmg") }?.browserDownloadUrl ?? htmlUrl
+        var diskImageURL: URL? {
+            assets.first { $0.name.hasSuffix(".dmg") }?.browserDownloadUrl
         }
     }
 
@@ -33,6 +33,7 @@ final class UpdateChecker {
     private static let checkInterval: TimeInterval = 24 * 60 * 60
 
     private(set) var isChecking = false
+    private(set) var isDownloading = false
     private var isRunningAutomaticChecks = false
 
     private var currentVersion: String {
@@ -90,7 +91,7 @@ final class UpdateChecker {
         let skipped = UserDefaults.standard.string(forKey: Self.skippedVersionKey)
         if !userInitiated && skipped == release.version { return }
 
-        promptToUpdate(to: release)
+        await promptToUpdate(to: release)
     }
 
     private func fetchLatestRelease() async throws -> Release {
@@ -104,21 +105,48 @@ final class UpdateChecker {
         return try decoder.decode(Release.self, from: data)
     }
 
-    private func promptToUpdate(to release: Release) {
+    private func promptToUpdate(to release: Release) async {
         let alert = NSAlert()
         alert.messageText = "Player for Nebula \(release.version) is available"
-        alert.informativeText = "You have version \(currentVersion). Download the new version and drag it into your Applications folder to replace this one."
-        alert.addButton(withTitle: "Download")
+        alert.informativeText = "You have version \(currentVersion). The app will download the update and quit. Drag the new version into your Applications folder to replace this one, then open it again."
+        alert.addButton(withTitle: "Update")
         alert.addButton(withTitle: "Later")
         alert.addButton(withTitle: "Skip This Version")
 
         switch alert.runModal() {
         case .alertFirstButtonReturn:
-            NSWorkspace.shared.open(release.downloadURL)
+            await install(release)
         case .alertThirdButtonReturn:
             UserDefaults.standard.set(release.version, forKey: Self.skippedVersionKey)
         default:
             break
+        }
+    }
+
+    private func install(_ release: Release) async {
+        guard let diskImageURL = release.diskImageURL else {
+            NSWorkspace.shared.open(release.htmlUrl)
+            return
+        }
+        isDownloading = true
+        defer { isDownloading = false }
+        do {
+            let (downloaded, response) = try await URLSession.shared.download(from: diskImageURL)
+            let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+            guard (200..<300).contains(status) else { throw NebulaAPI.Error.badStatus(status, diskImageURL) }
+            let destination = FileManager.default.temporaryDirectory
+                .appendingPathComponent("PlayerForNebula-\(release.version).dmg")
+            try? FileManager.default.removeItem(at: destination)
+            try FileManager.default.moveItem(at: downloaded, to: destination)
+            guard NSWorkspace.shared.open(destination) else { throw CocoaError(.fileReadUnknown) }
+            NSApp.terminate(nil)
+        } catch {
+            logger.error("Downloading update failed: \(error, privacy: .public)")
+            showAlert(
+                message: "Couldn’t download the update",
+                info: "The download will open in your browser instead."
+            )
+            NSWorkspace.shared.open(diskImageURL)
         }
     }
 
