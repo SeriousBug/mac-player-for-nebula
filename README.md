@@ -1,6 +1,4 @@
-<img src="design/AppIcon.svg" width="128" height="128" alt="Player for Nebula icon">
-
-# Player for Nebula
+# <img src="design/AppIcon.svg" width="28" height="28" alt="Player for Nebula icon"> Player for Nebula
 
 A native macOS app for [Nebula](https://nebula.tv).
 Log into your Nebula account, watch videos, follow your favorite creators, and catch up on your watch later queue.
