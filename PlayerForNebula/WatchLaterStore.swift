@@ -62,7 +62,7 @@ struct WatchLaterButton: View {
             Button("Remove from Watch Later", systemImage: "clock.badge.xmark") { set(false) }
                 .disabled(isUpdating)
         case false?:
-            Button("Add to Watch Later", systemImage: "clock.badge.plus") { set(true) }
+            Button("Add to Watch Later", systemImage: "clock") { set(true) }
                 .disabled(isUpdating)
         case nil:
             EmptyView()
