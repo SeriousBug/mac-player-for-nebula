@@ -8,6 +8,7 @@ struct PodcastPlayerView: View {
     let episode: PodcastEpisode
 
     @Environment(NebulaSession.self) private var session
+    @Environment(SavedEpisodesStore.self) private var savedEpisodesStore
     @State private var model = PodcastPlayerModel()
 
     var body: some View {
@@ -36,6 +37,10 @@ struct PodcastPlayerView: View {
             .padding(24)
             .frame(maxWidth: .infinity)
         }
+        .toolbar {
+            SaveEpisodeButton(episodeID: episode.id)
+        }
+        .task { await savedEpisodesStore.loadStates(for: [episode.id], session: session) }
         .task { await model.play(episode: episode, session: session) }
         .onDisappear { model.stop() }
     }

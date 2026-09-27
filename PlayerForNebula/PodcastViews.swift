@@ -70,6 +70,9 @@ struct PodcastEpisodeRow: View {
             .contentShape(.rect)
         }
         .buttonStyle(.plain)
+        .contextMenu {
+            SaveEpisodeButton(episodeID: episode.id)
+        }
     }
 }
 
@@ -102,6 +105,9 @@ struct PodcastEpisodeGrid<Header: View, Footer: View>: View {
     @ViewBuilder var header: Header
     @ViewBuilder var footer: Footer
 
+    @Environment(NebulaSession.self) private var session
+    @Environment(SavedEpisodesStore.self) private var savedEpisodesStore
+
     var body: some View {
         CardGrid(
             items: episodes,
@@ -113,6 +119,9 @@ struct PodcastEpisodeGrid<Header: View, Footer: View>: View {
             header: { header },
             footer: { footer }
         )
+        .task(id: episodes.map(\.id)) {
+            await savedEpisodesStore.loadStates(for: episodes.map(\.id), session: session)
+        }
     }
 }
 

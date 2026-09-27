@@ -22,31 +22,43 @@ struct ContentView: View {
 }
 
 enum LibraryTab: String, CaseIterable {
+    case explore
     case latestVideos
     case followedChannels
-    case explore
     case watchLater
     case watchHistory
+    case latestEpisodes
+    case followedPodcasts
+    case savedEpisodes
+    case listenHistory
     case store
 
     var title: LocalizedStringKey {
         switch self {
+        case .explore: "Explore"
         case .latestVideos: "Latest Videos"
         case .followedChannels: "Followed Channels"
-        case .explore: "Explore"
         case .watchLater: "Watch Later"
         case .watchHistory: "Watch History"
+        case .latestEpisodes: "Latest Episodes"
+        case .followedPodcasts: "Followed Podcasts"
+        case .savedEpisodes: "Saved Episodes"
+        case .listenHistory: "Listen History"
         case .store: "Store"
         }
     }
 
     var systemImage: String {
         switch self {
+        case .explore: "safari"
         case .latestVideos: "play.rectangle"
         case .followedChannels: "person.2"
-        case .explore: "safari"
         case .watchLater: "clock"
         case .watchHistory: "clock.arrow.circlepath"
+        case .latestEpisodes: "dot.radiowaves.left.and.right"
+        case .followedPodcasts: "mic"
+        case .savedEpisodes: "bookmark"
+        case .listenHistory: "clock.arrow.circlepath"
         case .store: "bag"
         }
     }
@@ -61,6 +73,7 @@ enum LibraryTab: String, CaseIterable {
 
 private struct LibraryView: View {
     @Environment(WatchLaterStore.self) private var watchLaterStore
+    @Environment(SavedEpisodesStore.self) private var savedEpisodesStore
     @Environment(\.openURL) private var openURL
     @AppStorage("startupTab") private var startupTab = LibraryTab.latestVideos
     @State private var selectedTab: LibraryTab?
@@ -73,38 +86,73 @@ private struct LibraryView: View {
                 selectedTab = tab
             }
         }) {
-            tab(.latestVideos) {
-                NavigationStack {
-                    LatestVideosView()
-                        .libraryDestinations()
-                }
-            }
-            tab(.followedChannels) {
-                NavigationStack {
-                    FollowedChannelsView()
-                        .libraryDestinations()
-                }
-            }
             tab(.explore) {
                 NavigationStack {
                     ExploreView()
                         .libraryDestinations()
                 }
             }
-            tab(.watchLater) {
-                NavigationStack {
-                    EpisodeListView(
-                        emptyMessage: "No videos saved to watch later",
-                        version: watchLaterStore.version,
-                        loadPage: NebulaAPI.watchLater
-                    )
-                        .libraryDestinations()
+            TabSection("Videos") {
+                tab(.latestVideos) {
+                    NavigationStack {
+                        LatestVideosView()
+                            .libraryDestinations()
+                    }
+                }
+                tab(.followedChannels) {
+                    NavigationStack {
+                        FollowedChannelsView()
+                            .libraryDestinations()
+                    }
+                }
+                tab(.watchLater) {
+                    NavigationStack {
+                        EpisodeListView(
+                            emptyMessage: "No videos saved to watch later",
+                            version: watchLaterStore.version,
+                            loadPage: NebulaAPI.watchLater
+                        )
+                            .libraryDestinations()
+                    }
+                }
+                tab(.watchHistory) {
+                    NavigationStack {
+                        EpisodeListView(emptyMessage: "No watched videos yet", loadPage: NebulaAPI.watchHistory)
+                            .libraryDestinations()
+                    }
                 }
             }
-            tab(.watchHistory) {
-                NavigationStack {
-                    EpisodeListView(emptyMessage: "No watched videos yet", loadPage: NebulaAPI.watchHistory)
-                        .libraryDestinations()
+            TabSection("Podcasts") {
+                tab(.latestEpisodes) {
+                    NavigationStack {
+                        PodcastEpisodeListView(
+                            emptyMessage: "No episodes from podcasts you follow",
+                            loadPage: NebulaAPI.latestFollowedPodcastEpisodes
+                        )
+                            .libraryDestinations()
+                    }
+                }
+                tab(.followedPodcasts) {
+                    NavigationStack {
+                        FollowedPodcastsView()
+                            .libraryDestinations()
+                    }
+                }
+                tab(.savedEpisodes) {
+                    NavigationStack {
+                        PodcastEpisodeListView(
+                            emptyMessage: "No saved episodes",
+                            version: savedEpisodesStore.version,
+                            loadPage: NebulaAPI.savedEpisodes
+                        )
+                            .libraryDestinations()
+                    }
+                }
+                tab(.listenHistory) {
+                    NavigationStack {
+                        PodcastEpisodeListView(emptyMessage: "No episodes listened to yet", loadPage: NebulaAPI.listenHistory)
+                            .libraryDestinations()
+                    }
                 }
             }
             tab(.store) {}

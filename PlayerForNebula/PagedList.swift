@@ -39,6 +39,12 @@ final class PagedList<Item: Identifiable & Decodable & Sendable> {
         await loadMore(session: session)
     }
 
+    func reload(session: NebulaSession) async {
+        guard let query, let loadPage else { return }
+        self.query = nil
+        await load(query, session: session, loadPage: loadPage)
+    }
+
     func loadMore(session: NebulaSession) async {
         guard let loadPage, hasMore, !isLoading else { return }
         isLoading = true

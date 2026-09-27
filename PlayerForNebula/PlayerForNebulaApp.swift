@@ -6,6 +6,7 @@ struct PlayerForNebulaApp: App {
     @State private var exclusivityIcons = ExclusivityIcons()
     @State private var followStore = FollowStore()
     @State private var watchLaterStore = WatchLaterStore()
+    @State private var savedEpisodesStore = SavedEpisodesStore()
 
     var body: some Scene {
         WindowGroup {
@@ -13,6 +14,7 @@ struct PlayerForNebulaApp: App {
                 .environment(session)
                 .environment(followStore)
                 .environment(watchLaterStore)
+                .environment(savedEpisodesStore)
                 .environment(exclusivityIcons)
                 .task { await exclusivityIcons.load() }
         }

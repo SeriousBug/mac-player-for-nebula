@@ -200,6 +200,82 @@ enum NebulaAPI {
         ), token: token)
     }
 
+    /// Pass `page.next` from the previous result as `pageURL` to load the following page.
+    static func latestFollowedPodcastEpisodes(pageURL: URL? = nil, token: String) async throws -> Page<PodcastEpisode> {
+        try await page(pageURL ?? listURL(
+            "podcast_episodes/",
+            category: nil,
+            ordering: DateOrdering.newest.rawValue,
+            extra: [URLQueryItem(name: "following", value: "true")]
+        ), token: token)
+    }
+
+    /// Pass `page.next` from the previous result as `pageURL` to load the following page.
+    static func followedPodcasts(
+        ordering: FollowedChannelsOrdering,
+        pageURL: URL? = nil,
+        token: String
+    ) async throws -> Page<PodcastChannel> {
+        try await page(pageURL ?? listURL(
+            "podcast_channels/",
+            category: nil,
+            ordering: ordering.rawValue,
+            extra: [URLQueryItem(name: "following", value: "true")]
+        ), token: token)
+    }
+
+    /// Pass `page.next` from the previous result as `pageURL` to load the following page.
+    static func savedEpisodes(pageURL: URL? = nil, token: String) async throws -> Page<PodcastEpisode> {
+        try await page(pageURL ?? listURL(
+            "user_podcast_playlists/saved-episodes/podcast_episodes/",
+            category: nil,
+            ordering: "-added_to_playlist"
+        ), token: token)
+    }
+
+    /// Podcast episodes the user has started, most recently listened first.
+    /// Pass `page.next` from the previous result as `pageURL` to load the following page.
+    static func listenHistory(pageURL: URL? = nil, token: String) async throws -> Page<PodcastEpisode> {
+        try await page(pageURL ?? listURL(
+            "podcast_episodes/",
+            category: nil,
+            ordering: "-progress",
+            extra: [URLQueryItem(name: "progress", value: "any_progress")]
+        ), token: token)
+    }
+
+    /// Returns whether each podcast episode is in the saved episodes list, keyed by episode ID.
+    static func savedEpisodeStates(episodeIDs: [String], token: String) async throws -> [String: Bool] {
+        struct Engagement: Decodable {
+            let id: String
+            let savedEpisode: Bool
+
+            enum CodingKeys: String, CodingKey {
+                case id
+                case savedEpisode = "saved_episode"
+            }
+        }
+        struct Response: Decodable { let results: [Engagement] }
+        var components = URLComponents(string: "https://content.api.nebula.app/podcast_episodes/engagement/")!
+        components.queryItems = [
+            URLQueryItem(name: "ids", value: episodeIDs.joined(separator: ",")),
+            URLQueryItem(name: "page_size", value: String(episodeIDs.count)),
+        ]
+        var request = URLRequest(url: components.url!)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        let response = try await decoder.decode(Response.self, from: send(request))
+        return Dictionary(response.results.map { ($0.id, $0.savedEpisode) }, uniquingKeysWith: { first, _ in first })
+    }
+
+    static func setSaved(_ saved: Bool, episodeID: String, token: String) async throws {
+        var request = URLRequest(url: URL(string: "https://content.api.nebula.app/user_podcast_playlists/saved-episodes/podcast_episodes/")!)
+        request.httpMethod = saved ? "POST" : "DELETE"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONEncoder().encode(["id": episodeID])
+        _ = try await send(request)
+    }
+
     static func podcastProgress(episodeID: String, token: String) async throws -> Progress? {
         struct Engagement: Decodable { let id: String; let progress: Progress? }
         struct Response: Decodable { let results: [Engagement] }
