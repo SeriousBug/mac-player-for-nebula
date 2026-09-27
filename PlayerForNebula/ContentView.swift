@@ -26,6 +26,7 @@ enum LibraryTab: String, CaseIterable {
     case followedChannels
     case watchLater
     case watchHistory
+    case store
 
     var title: LocalizedStringKey {
         switch self {
@@ -33,6 +34,7 @@ enum LibraryTab: String, CaseIterable {
         case .followedChannels: "Followed Channels"
         case .watchLater: "Watch Later"
         case .watchHistory: "Watch History"
+        case .store: "Store"
         }
     }
 
@@ -42,17 +44,32 @@ enum LibraryTab: String, CaseIterable {
         case .followedChannels: "person.2"
         case .watchLater: "clock"
         case .watchHistory: "clock.arrow.circlepath"
+        case .store: "bag"
+        }
+    }
+
+    var externalURL: URL? {
+        switch self {
+        case .store: URL(string: "https://store.nebula.tv")
+        default: nil
         }
     }
 }
 
 private struct LibraryView: View {
     @Environment(WatchLaterStore.self) private var watchLaterStore
+    @Environment(\.openURL) private var openURL
     @AppStorage("startupTab") private var startupTab = LibraryTab.latestVideos
     @State private var selectedTab: LibraryTab?
 
     var body: some View {
-        TabView(selection: Binding { selectedTab ?? startupTab } set: { selectedTab = $0 }) {
+        TabView(selection: Binding { selectedTab ?? startupTab } set: { tab in
+            if let url = tab.externalURL {
+                openURL(url)
+            } else {
+                selectedTab = tab
+            }
+        }) {
             tab(.latestVideos) {
                 NavigationStack {
                     LatestVideosView()
@@ -81,6 +98,7 @@ private struct LibraryView: View {
                         .libraryDestinations()
                 }
             }
+            tab(.store) {}
         }
         .tabViewStyle(.sidebarAdaptable)
     }

@@ -6,7 +6,7 @@ struct SettingsView: View {
     var body: some View {
         Form {
             Picker("Open at launch:", selection: $startupTab) {
-                ForEach(LibraryTab.allCases, id: \.self) { tab in
+                ForEach(LibraryTab.allCases.filter { $0.externalURL == nil }, id: \.self) { tab in
                     Text(tab.title).tag(tab)
                 }
             }
