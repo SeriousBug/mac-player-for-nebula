@@ -1,7 +1,7 @@
 import OSLog
 import SwiftUI
 
-private let logger = Logger(subsystem: "com.example.PlayerForNebula", category: "Explore")
+private let logger = Logger(subsystem: "dev.bgenc.player-for-nebula", category: "Explore")
 
 enum ExploreSection: String, CaseIterable {
     case videos

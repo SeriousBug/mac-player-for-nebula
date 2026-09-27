@@ -1,7 +1,7 @@
 import OSLog
 import SwiftUI
 
-private let logger = Logger(subsystem: "com.example.PlayerForNebula", category: "Channel")
+private let logger = Logger(subsystem: "dev.bgenc.player-for-nebula", category: "Channel")
 
 struct ChannelView: View {
     let slug: String

@@ -2,7 +2,7 @@ import AVKit
 import OSLog
 import SwiftUI
 
-private let logger = Logger(subsystem: "com.example.PlayerForNebula", category: "Player")
+private let logger = Logger(subsystem: "dev.bgenc.player-for-nebula", category: "Player")
 
 struct PlayerView: View {
     let episode: VideoEpisode

@@ -1,7 +1,7 @@
 import OSLog
 import SwiftUI
 
-private let logger = Logger(subsystem: "com.example.PlayerForNebula", category: "SavedEpisodes")
+private let logger = Logger(subsystem: "dev.bgenc.player-for-nebula", category: "SavedEpisodes")
 
 /// Whether podcast episodes are saved, shared so every view showing an episode agrees on its state.
 @MainActor

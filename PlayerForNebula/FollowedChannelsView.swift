@@ -1,7 +1,7 @@
 import OSLog
 import SwiftUI
 
-private let logger = Logger(subsystem: "com.example.PlayerForNebula", category: "FollowedChannels")
+private let logger = Logger(subsystem: "dev.bgenc.player-for-nebula", category: "FollowedChannels")
 
 struct FollowedChannelsView: View {
     @Environment(NebulaSession.self) private var session

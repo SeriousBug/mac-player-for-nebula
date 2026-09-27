@@ -1,7 +1,7 @@
 import OSLog
 import SwiftUI
 
-private let logger = Logger(subsystem: "com.example.PlayerForNebula", category: "Follow")
+private let logger = Logger(subsystem: "dev.bgenc.player-for-nebula", category: "Follow")
 
 /// Whether channels are followed, shared so every view showing a channel agrees on its state.
 @MainActor

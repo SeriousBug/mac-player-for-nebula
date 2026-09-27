@@ -2,7 +2,7 @@ import AppKit
 import OSLog
 import SwiftUI
 
-private let logger = Logger(subsystem: "com.example.PlayerForNebula", category: "Icons")
+private let logger = Logger(subsystem: "dev.bgenc.player-for-nebula", category: "Icons")
 
 /// Nebula's badge artwork is copyrighted, so it is read from nebula.tv at runtime instead of being bundled.
 /// The web app inlines the badges as data URIs in its main script, next to the code that picks one per video.

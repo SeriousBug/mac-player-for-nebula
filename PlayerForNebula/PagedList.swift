@@ -1,7 +1,7 @@
 import OSLog
 import SwiftUI
 
-private let logger = Logger(subsystem: "com.example.PlayerForNebula", category: "PagedList")
+private let logger = Logger(subsystem: "dev.bgenc.player-for-nebula", category: "PagedList")
 
 /// Items from a paginated endpoint, loaded one page at a time as the user scrolls.
 @MainActor

@@ -1,13 +1,13 @@
 name: PlayerForNebula
 options:
-  bundleIdPrefix: com.example
+  bundleIdPrefix: dev.bgenc
   deploymentTarget:
     macOS: "26.0"
   createIntermediateGroups: true
 settings:
   base:
     SWIFT_VERSION: "6.0"
-    MARKETING_VERSION: "0.1.0"
+    MARKETING_VERSION: "1.0"
     CURRENT_PROJECT_VERSION: "1"
 targets:
   PlayerForNebula:
@@ -17,7 +17,7 @@ targets:
       - PlayerForNebula
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.example.PlayerForNebula
+        PRODUCT_BUNDLE_IDENTIFIER: dev.bgenc.player-for-nebula
         PRODUCT_NAME: Player for Nebula
         INFOPLIST_KEY_CFBundleDisplayName: Player for Nebula
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.entertainment

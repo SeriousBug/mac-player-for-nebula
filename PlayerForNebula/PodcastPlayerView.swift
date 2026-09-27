@@ -2,7 +2,7 @@ import AVKit
 import OSLog
 import SwiftUI
 
-private let logger = Logger(subsystem: "com.example.PlayerForNebula", category: "PodcastPlayer")
+private let logger = Logger(subsystem: "dev.bgenc.player-for-nebula", category: "PodcastPlayer")
 
 struct PodcastPlayerView: View {
     let episode: PodcastEpisode

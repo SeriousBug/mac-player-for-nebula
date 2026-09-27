@@ -2,7 +2,7 @@ import Foundation
 import OSLog
 import WebKit
 
-private let logger = Logger(subsystem: "com.example.PlayerForNebula", category: "Auth")
+private let logger = Logger(subsystem: "dev.bgenc.player-for-nebula", category: "Auth")
 
 /// Holds the API key from sign-in and hands out a JWT, refreshing it before it expires.
 @MainActor

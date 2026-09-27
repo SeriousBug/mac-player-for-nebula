@@ -22,3 +22,12 @@ open: generate
 
 clean:
     rm -rf {{derived}} {{project}}
+
+# Builds a universal Release DMG with an Applications shortcut for drag-and-drop install.
+dmg: generate
+    xcodebuild -project {{project}} -scheme {{scheme}} -configuration Release -derivedDataPath {{derived}} -destination 'generic/platform=macOS' build
+    rm -rf {{derived}}/dmg "{{derived}}/{{scheme}}.dmg"
+    mkdir -p {{derived}}/dmg
+    cp -R "{{derived}}/Build/Products/Release/{{app_name}}.app" {{derived}}/dmg/
+    ln -s /Applications {{derived}}/dmg/Applications
+    hdiutil create -volname "{{app_name}}" -srcfolder {{derived}}/dmg -fs HFS+ -format UDZO "{{derived}}/{{scheme}}.dmg"

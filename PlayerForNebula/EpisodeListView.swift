@@ -1,7 +1,7 @@
 import OSLog
 import SwiftUI
 
-private let logger = Logger(subsystem: "com.example.PlayerForNebula", category: "EpisodeList")
+private let logger = Logger(subsystem: "dev.bgenc.player-for-nebula", category: "EpisodeList")
 
 /// An infinitely scrolling grid of videos from a paginated endpoint.
 struct EpisodeListView: View {

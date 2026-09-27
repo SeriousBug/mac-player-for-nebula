@@ -1,7 +1,7 @@
 import OSLog
 import SwiftUI
 
-private let logger = Logger(subsystem: "com.example.PlayerForNebula", category: "Podcast")
+private let logger = Logger(subsystem: "dev.bgenc.player-for-nebula", category: "Podcast")
 
 struct PodcastRoute: Hashable {
     let slug: String

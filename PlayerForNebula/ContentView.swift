@@ -2,7 +2,7 @@ import OSLog
 import SwiftUI
 import WebKit
 
-private let logger = Logger(subsystem: "com.example.PlayerForNebula", category: "Auth")
+private let logger = Logger(subsystem: "dev.bgenc.player-for-nebula", category: "Auth")
 
 struct ContentView: View {
     @Environment(NebulaSession.self) private var session

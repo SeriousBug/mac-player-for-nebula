@@ -1,7 +1,7 @@
 import OSLog
 import SwiftUI
 
-private let logger = Logger(subsystem: "com.example.PlayerForNebula", category: "WatchLater")
+private let logger = Logger(subsystem: "dev.bgenc.player-for-nebula", category: "WatchLater")
 
 /// Whether episodes are in the watch later list, shared so every view showing an episode agrees on its state.
 @MainActor

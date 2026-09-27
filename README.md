@@ -42,6 +42,13 @@ If the app does break, let me know by filing a bug report on Github and I'll try
 - macOS 26 or later
 - A Nebula subscription
 
+## Installing
+
+Download `PlayerForNebula.dmg` from the [latest release](https://github.com/SeriousBug/mac-player-for-nebula/releases/latest), open it, and drag Player for Nebula into Applications.
+
+The app is not notarized by Apple, so macOS blocks it the first time you open it.
+To allow it, open System Settings, go to Privacy & Security, scroll down, and click Open Anyway next to the message about Player for Nebula.
+
 ## Building
 
 Install [XcodeGen](https://github.com/yonaskolb/XcodeGen) and [just](https://github.com/casey/just), then run:
