@@ -5,9 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Player for Nebula</title>
 <meta name="description" content="A native macOS app for watching Nebula videos and listening to Nebula podcasts.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
     --paper: #eef0f3;
@@ -34,7 +31,7 @@
     margin: 0;
     background: var(--paper);
     color: var(--ink);
-    font: 400 1.0625rem/1.55 "Schibsted Grotesk", system-ui, sans-serif;
+    font: 400 1.0625rem/1.55 -apple-system, BlinkMacSystemFont, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     overflow-x: hidden;
   }
   a { color: var(--accent); text-underline-offset: .18em; }
@@ -67,7 +64,7 @@
     font-weight: 800;
     font-size: clamp(2.75rem, 8vw, 6.25rem);
     line-height: .95;
-    letter-spacing: -.035em;
+    letter-spacing: -.02em;
   }
   .hero .lede {
     margin: 28px 0 0;
