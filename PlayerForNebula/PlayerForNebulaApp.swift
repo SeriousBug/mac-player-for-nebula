@@ -7,6 +7,7 @@ struct PlayerForNebulaApp: App {
     @State private var followStore = FollowStore()
     @State private var watchLaterStore = WatchLaterStore()
     @State private var savedEpisodesStore = SavedEpisodesStore()
+    @State private var updateChecker = UpdateChecker()
 
     var body: some Scene {
         WindowGroup {
@@ -17,8 +18,15 @@ struct PlayerForNebulaApp: App {
                 .environment(savedEpisodesStore)
                 .environment(exclusivityIcons)
                 .task { await exclusivityIcons.load() }
+                .task { await updateChecker.runAutomaticChecks() }
         }
         .commands {
+            CommandGroup(after: .appInfo) {
+                Button("Check for Updates…") {
+                    Task { await updateChecker.check(userInitiated: true) }
+                }
+                .disabled(updateChecker.isChecking)
+            }
             CommandGroup(after: .appSettings) {
                 Button("Sign Out") {
                     Task { await session.signOut() }
