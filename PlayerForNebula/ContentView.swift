@@ -24,6 +24,7 @@ struct ContentView: View {
 enum LibraryTab: String, CaseIterable {
     case latestVideos
     case followedChannels
+    case explore
     case watchLater
     case watchHistory
     case store
@@ -32,6 +33,7 @@ enum LibraryTab: String, CaseIterable {
         switch self {
         case .latestVideos: "Latest Videos"
         case .followedChannels: "Followed Channels"
+        case .explore: "Explore"
         case .watchLater: "Watch Later"
         case .watchHistory: "Watch History"
         case .store: "Store"
@@ -42,6 +44,7 @@ enum LibraryTab: String, CaseIterable {
         switch self {
         case .latestVideos: "play.rectangle"
         case .followedChannels: "person.2"
+        case .explore: "safari"
         case .watchLater: "clock"
         case .watchHistory: "clock.arrow.circlepath"
         case .store: "bag"
@@ -82,6 +85,12 @@ private struct LibraryView: View {
                         .libraryDestinations()
                 }
             }
+            tab(.explore) {
+                NavigationStack {
+                    ExploreView()
+                        .libraryDestinations()
+                }
+            }
             tab(.watchLater) {
                 NavigationStack {
                     EpisodeListView(
@@ -116,6 +125,13 @@ private extension View {
         }
         .navigationDestination(for: ChannelRoute.self) { route in
             ChannelView(slug: route.slug)
+        }
+        .navigationDestination(for: PodcastRoute.self) { route in
+            PodcastView(slug: route.slug)
+        }
+        .navigationDestination(for: PodcastEpisode.self) { episode in
+            PodcastPlayerView(episode: episode)
+                .navigationTitle(episode.title)
         }
     }
 }

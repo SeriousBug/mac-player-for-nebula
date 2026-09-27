@@ -17,18 +17,16 @@ struct FollowedChannelsView: View {
             maxColumns: 6,
             onReachEnd: { Task { await model.loadMore(session: session) } },
             card: { channel in
-                ChannelCard(channel: channel, model: model)
+                // Unfollowed channels stay in the list so an accidental unfollow can be undone.
+                ChannelCard(channel: channel, followFallback: true) {
+                    model.loadedVersion = followStore.version
+                }
             },
             header: { EmptyView() },
             footer: { footer }
         )
         .toolbar {
-            Picker("Sort By", selection: $ordering) {
-                ForEach(FollowedChannelsOrdering.allCases, id: \.self) { ordering in
-                    Text(ordering.title).tag(ordering)
-                }
-            }
-            .pickerStyle(.menu)
+            SortPicker(selection: $ordering)
         }
         .onAppear(perform: reloadIfStale)
         .onChange(of: ordering, reloadIfStale)
@@ -54,88 +52,6 @@ struct FollowedChannelsView: View {
             Text("You don't follow any channels yet")
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity)
-        }
-    }
-}
-
-private struct ChannelCard: View {
-    let channel: Channel
-    let model: FollowedChannelsModel
-
-    @Environment(NebulaSession.self) private var session
-    @Environment(FollowStore.self) private var followStore
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            NavigationLink(value: ChannelRoute(slug: channel.slug)) {
-                Rectangle()
-                    .fill(.quaternary)
-                    .aspectRatio(16 / 9, contentMode: .fit)
-                    .overlay {
-                        if let featured = channel.images.featured {
-                            AsyncImage(url: featured.url(width: 640)) { image in
-                                image.resizable().scaledToFill()
-                            } placeholder: {
-                                EmptyView()
-                            }
-                        }
-                    }
-                    .clipShape(.rect(cornerRadius: 8))
-            }
-            .buttonStyle(.plain)
-
-            HStack(alignment: .top, spacing: 8) {
-                NavigationLink(value: ChannelRoute(slug: channel.slug)) {
-                    HStack(alignment: .top, spacing: 8) {
-                        if let avatar = channel.images.avatar {
-                            AsyncImage(url: avatar.url(width: 64)) { image in
-                                image.resizable().scaledToFill()
-                            } placeholder: {
-                                Circle().fill(.quaternary)
-                            }
-                            .frame(width: 24, height: 24)
-                            .clipShape(.circle)
-                        }
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(channel.title)
-                                .font(.headline)
-                                .lineLimit(2)
-                                .multilineTextAlignment(.leading)
-                            if let genre = channel.genre {
-                                Text(genre)
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-                }
-                .buttonStyle(.plain)
-                Spacer(minLength: 0)
-                followButton
-            }
-        }
-    }
-
-    @ViewBuilder private var followButton: some View {
-        let isUpdating = followStore.updatingIDs.contains(channel.id)
-        if followStore.isFollowing(channel.id) ?? true {
-            Button("Following", systemImage: "checkmark") { setFollowing(false) }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .disabled(isUpdating)
-        } else {
-            Button("Follow", systemImage: "plus") { setFollowing(true) }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.small)
-                .disabled(isUpdating)
-        }
-    }
-
-    /// Unfollowed channels stay in the list so an accidental unfollow can be undone.
-    private func setFollowing(_ following: Bool) {
-        Task {
-            await followStore.setFollowing(following, channelID: channel.id, session: session)
-            model.loadedVersion = followStore.version
         }
     }
 }

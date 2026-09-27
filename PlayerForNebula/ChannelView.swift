@@ -55,7 +55,6 @@ private struct ChannelHeader: View {
     let model: ChannelModel
 
     @Environment(NebulaSession.self) private var session
-    @Environment(FollowStore.self) private var followStore
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -86,7 +85,7 @@ private struct ChannelHeader: View {
                 Text(channel.title)
                     .font(.title.bold())
                 Spacer()
-                followButton
+                FollowButton(channelID: channel.id, fallback: model.isFollowing)
             }
 
             if !channel.description.isEmpty {
@@ -109,53 +108,13 @@ private struct ChannelHeader: View {
             if !channel.exclusivity.isEmpty {
                 HStack(spacing: 8) {
                     ForEach(channel.exclusivity, id: \.self) { exclusivity in
-                        FilterToggle(exclusivity: exclusivity, isOn: model.filter.contains(exclusivity)) {
+                        FilterToggle(exclusivity.title, exclusivity: exclusivity, isOn: model.filter.contains(exclusivity)) {
                             Task { await model.toggleFilter(exclusivity, session: session) }
                         }
                     }
                 }
             }
         }
-    }
-
-    @ViewBuilder private var followButton: some View {
-        if let isFollowing = followStore.isFollowing(channel.id) ?? model.isFollowing {
-            let isUpdating = followStore.updatingIDs.contains(channel.id)
-            if isFollowing {
-                Button("Following", systemImage: "checkmark") {
-                    Task { await followStore.setFollowing(false, channelID: channel.id, session: session) }
-                }
-                .buttonStyle(.bordered)
-                .disabled(isUpdating)
-            } else {
-                Button("Follow", systemImage: "plus") {
-                    Task { await followStore.setFollowing(true, channelID: channel.id, session: session) }
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(isUpdating)
-            }
-        }
-    }
-}
-
-private struct FilterToggle: View {
-    let exclusivity: Exclusivity
-    let isOn: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 4) {
-                ExclusivityIcon(exclusivity: exclusivity, size: 12)
-                Text(exclusivity.title)
-            }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 4)
-            .foregroundStyle(isOn ? AnyShapeStyle(.white) : AnyShapeStyle(.primary))
-            .background(isOn ? AnyShapeStyle(.tint) : AnyShapeStyle(.quaternary), in: .capsule)
-        }
-        .buttonStyle(.plain)
-        .accessibilityAddTraits(isOn ? .isSelected : [])
     }
 }
 

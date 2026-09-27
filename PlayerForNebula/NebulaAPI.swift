@@ -109,6 +109,132 @@ enum NebulaAPI {
         return try await decoder.decode(EpisodePage.self, from: send(request))
     }
 
+    /// Video and podcast categories combined, the way the web app lists them on its explore page.
+    static func categories(token: String) async throws -> [Category] {
+        async let video = categories(type: "video_channel", token: token)
+        async let podcast = categories(type: "podcast_channel", token: token)
+        var seen: Set<String> = []
+        return try await (video + podcast).filter { seen.insert($0.slug).inserted }
+    }
+
+    private static func categories(type: String, token: String) async throws -> [Category] {
+        var components = URLComponents(string: "https://content.api.nebula.app/categories/")!
+        components.queryItems = [
+            URLQueryItem(name: "type", value: type),
+            URLQueryItem(name: "page_size", value: "100"),
+        ]
+        return try await page(components.url!, token: token).results
+    }
+
+    /// Pass `page.next` from the previous result as `pageURL` to load the following page.
+    static func videoEpisodes(
+        category: String?,
+        exclusivity: Set<Exclusivity>,
+        ordering: DateOrdering,
+        pageURL: URL? = nil,
+        token: String
+    ) async throws -> EpisodePage {
+        try await page(pageURL ?? listURL(
+            "video_episodes/",
+            category: category,
+            ordering: ordering.rawValue,
+            extra: exclusivity.map(\.rawValue).sorted().map { URLQueryItem(name: "exclusivity", value: $0) }
+        ), token: token)
+    }
+
+    /// Pass `page.next` from the previous result as `pageURL` to load the following page.
+    static func videoChannels(
+        category: String?,
+        ordering: ExploreChannelsOrdering,
+        pageURL: URL? = nil,
+        token: String
+    ) async throws -> ChannelPage {
+        try await page(pageURL ?? listURL("video_channels/", category: category, ordering: ordering.rawValue), token: token)
+    }
+
+    /// Pass `page.next` from the previous result as `pageURL` to load the following page.
+    static func podcastChannels(
+        category: String?,
+        ordering: PodcastsOrdering,
+        pageURL: URL? = nil,
+        token: String
+    ) async throws -> Page<PodcastChannel> {
+        try await page(pageURL ?? listURL("podcast_channels/", category: category, ordering: ordering.rawValue), token: token)
+    }
+
+    /// Pass `page.next` from the previous result as `pageURL` to load the following page.
+    static func podcastEpisodes(
+        category: String?,
+        ordering: DateOrdering,
+        unplayedOnly: Bool,
+        pageURL: URL? = nil,
+        token: String
+    ) async throws -> Page<PodcastEpisode> {
+        try await page(pageURL ?? listURL(
+            "podcast_episodes/",
+            category: category,
+            ordering: ordering.rawValue,
+            extra: unplayedOnly ? [URLQueryItem(name: "progress", value: "unwatched")] : []
+        ), token: token)
+    }
+
+    static func podcastChannel(slug: String, token: String) async throws -> PodcastChannel {
+        var request = URLRequest(url: URL(string: "https://content.api.nebula.app/content/\(slug)/")!)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        return try await decoder.decode(PodcastChannel.self, from: send(request))
+    }
+
+    /// Pass `page.next` from the previous result as `pageURL` to load the following page.
+    static func podcastChannelEpisodes(
+        channelID: String,
+        ordering: DateOrdering,
+        unplayedOnly: Bool,
+        pageURL: URL? = nil,
+        token: String
+    ) async throws -> Page<PodcastEpisode> {
+        try await page(pageURL ?? listURL(
+            "podcast_channels/\(channelID)/podcast_episodes/",
+            category: nil,
+            ordering: ordering.rawValue,
+            extra: unplayedOnly ? [URLQueryItem(name: "progress", value: "unwatched")] : []
+        ), token: token)
+    }
+
+    static func podcastProgress(episodeID: String, token: String) async throws -> Progress? {
+        struct Engagement: Decodable { let id: String; let progress: Progress? }
+        struct Response: Decodable { let results: [Engagement] }
+        var components = URLComponents(string: "https://content.api.nebula.app/podcast_episodes/engagement/")!
+        components.queryItems = [URLQueryItem(name: "ids", value: episodeID)]
+        var request = URLRequest(url: components.url!)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        let response = try await decoder.decode(Response.self, from: send(request))
+        return response.results.first { $0.id == episodeID }?.progress
+    }
+
+    static func savePodcastProgress(episodeID: String, seconds: Int, token: String) async throws {
+        var request = URLRequest(url: URL(string: "https://content.api.nebula.app/podcast_episodes/\(episodeID)/progress/")!)
+        request.httpMethod = "PATCH"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONEncoder().encode(["value": seconds])
+        _ = try await send(request)
+    }
+
+    private static func listURL(_ path: String, category: String?, ordering: String, extra: [URLQueryItem] = []) -> URL {
+        var components = URLComponents(string: "https://content.api.nebula.app/\(path)")!
+        components.queryItems = [
+            URLQueryItem(name: "ordering", value: ordering),
+            URLQueryItem(name: "page_size", value: "24"),
+        ] + (category.map { [URLQueryItem(name: "category", value: $0)] } ?? []) + extra
+        return components.url!
+    }
+
+    private static func page<Item: Decodable>(_ url: URL, token: String) async throws -> Page<Item> {
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        return try await decoder.decode(Page<Item>.self, from: send(request))
+    }
+
     static func isFollowing(channelID: String, token: String) async throws -> Bool {
         struct Engagement: Decodable { let id: String; let following: Bool }
         struct Response: Decodable { let results: [Engagement] }
@@ -120,8 +246,23 @@ enum NebulaAPI {
         return response.results.first { $0.id == channelID }?.following ?? false
     }
 
-    static func setFollowing(_ following: Bool, channelID: String, token: String) async throws {
-        var request = URLRequest(url: URL(string: "https://content.api.nebula.app/video_channels/\(channelID)/follow/")!)
+    /// Returns whether each channel is followed, keyed by channel ID.
+    static func followStates(channelIDs: [String], kind: ChannelKind, token: String) async throws -> [String: Bool] {
+        struct Engagement: Decodable { let id: String; let following: Bool }
+        struct Response: Decodable { let results: [Engagement] }
+        var components = URLComponents(string: "https://content.api.nebula.app/\(kind.pathComponent)/engagement/")!
+        components.queryItems = [
+            URLQueryItem(name: "ids", value: channelIDs.joined(separator: ",")),
+            URLQueryItem(name: "page_size", value: String(channelIDs.count)),
+        ]
+        var request = URLRequest(url: components.url!)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        let response = try await decoder.decode(Response.self, from: send(request))
+        return Dictionary(response.results.map { ($0.id, $0.following) }, uniquingKeysWith: { first, _ in first })
+    }
+
+    static func setFollowing(_ following: Bool, channelID: String, kind: ChannelKind = .video, token: String) async throws {
+        var request = URLRequest(url: URL(string: "https://content.api.nebula.app/\(kind.pathComponent)/\(channelID)/follow/")!)
         request.httpMethod = following ? "POST" : "DELETE"
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         _ = try await send(request)
@@ -213,6 +354,11 @@ struct Progress: Decodable {
     /// Playback position in seconds.
     let value: Int
     let completed: Bool
+
+    /// Where playback should pick up, or nil to start from the beginning.
+    var resumeSeconds: Int? {
+        !completed && value > 0 ? value : nil
+    }
 }
 
 struct NebulaImage: Decodable, Hashable {
@@ -272,10 +418,14 @@ struct VideoEpisode: Decodable, Identifiable, Hashable {
     }
 }
 
-struct EpisodePage: Decodable {
-    let results: [VideoEpisode]
+struct Page<Item: Decodable>: Decodable {
+    let results: [Item]
     let next: URL?
 }
+
+extension Page: Sendable where Item: Sendable {}
+
+typealias EpisodePage = Page<VideoEpisode>
 
 enum FollowedChannelsOrdering: String, CaseIterable {
     case recentlyFollowed = "-follow"
@@ -291,10 +441,7 @@ enum FollowedChannelsOrdering: String, CaseIterable {
     }
 }
 
-struct ChannelPage: Decodable {
-    let results: [Channel]
-    let next: URL?
-}
+typealias ChannelPage = Page<Channel>
 
 struct Channel: Decodable, Identifiable {
     let id: String
@@ -344,6 +491,113 @@ struct Channel: Decodable, Identifiable {
             else { return nil }
             return Link(title: title, url: url)
         }
+    }
+}
+
+enum ChannelKind {
+    case video, podcast
+
+    var pathComponent: String {
+        switch self {
+        case .video: "video_channels"
+        case .podcast: "podcast_channels"
+        }
+    }
+}
+
+struct Category: Decodable, Identifiable, Hashable {
+    let id: String
+    let slug: String
+    let title: String
+}
+
+enum DateOrdering: String, CaseIterable {
+    case newest = "-published_at"
+    case oldest = "published_at"
+
+    var title: String {
+        switch self {
+        case .newest: "Newest"
+        case .oldest: "Oldest"
+        }
+    }
+}
+
+enum ExploreChannelsOrdering: String, CaseIterable {
+    case newest = "-published_at"
+    case latestActivity = "-episode_published"
+    case alphabetical = "title"
+
+    var title: String {
+        switch self {
+        case .newest: "Newest"
+        case .latestActivity: "Latest Activity"
+        case .alphabetical: "Alphabetical"
+        }
+    }
+}
+
+enum PodcastsOrdering: String, CaseIterable {
+    case latestActivity = "-episode_published"
+    case newest = "-published_at"
+    case alphabetical = "title"
+
+    var title: String {
+        switch self {
+        case .latestActivity: "Latest Activity"
+        case .newest: "Newest"
+        case .alphabetical: "Alphabetical"
+        }
+    }
+}
+
+struct PodcastChannel: Decodable, Identifiable, Hashable {
+    let id: String
+    let slug: String
+    let title: String
+    let creator: String?
+    let description: String?
+    let genre: String?
+    let images: Images
+
+    struct Images: Decodable, Hashable {
+        let avatar: NebulaImage?
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case id, slug, title, creator, description, images
+        case genre = "genre_category_title"
+    }
+}
+
+struct PodcastEpisode: Decodable, Identifiable, Hashable {
+    let id: String
+    let title: String
+    let description: String?
+    let channelTitle: String
+    let channelSlug: String
+    let publishedAt: Date
+    let duration: Int
+    /// A plain audio file on the podcast host, which the web player streams directly.
+    let audioURL: URL
+    let images: Images
+
+    struct Images: Decodable, Hashable {
+        let avatar: NebulaImage?
+        let channelAvatar: NebulaImage?
+
+        enum CodingKeys: String, CodingKey {
+            case avatar
+            case channelAvatar = "channel_avatar"
+        }
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case id, title, description, duration, images
+        case channelTitle = "channel_title"
+        case channelSlug = "channel_slug"
+        case publishedAt = "published_at"
+        case audioURL = "episode_url"
     }
 }
 

@@ -32,13 +32,14 @@ struct PlayerView: View {
 
 /// Wraps AppKit's AVPlayerView. SwiftUI's VideoPlayer aborts while building its view on this
 /// macOS 27 build (`getSuperclassMetadata` in _AVKit_SwiftUI), and AVPlayerView has the native macOS controls anyway.
-private struct AVPlayerViewRepresentable: NSViewRepresentable {
+struct AVPlayerViewRepresentable: NSViewRepresentable {
     let player: AVPlayer
+    var controlsStyle = AVPlayerViewControlsStyle.floating
 
     func makeNSView(context: Context) -> AVPlayerView {
         let view = AVPlayerView()
         view.player = player
-        view.controlsStyle = .floating
+        view.controlsStyle = controlsStyle
         view.allowsPictureInPicturePlayback = true
         view.showsFullScreenToggleButton = true
         return view
@@ -61,9 +62,7 @@ private final class PlayerModel {
     private var episode: VideoEpisode?
     private var session: NebulaSession?
     private var lastReload = Date.distantPast
-    private var lastSavedSeconds: Int?
-    private var timeObserver: Any?
-    private var rateObserver: Task<Void, Never>?
+    private var progressTracker: ProgressTracker?
 
     func play(episode: VideoEpisode, session: NebulaSession) async {
         guard self.episode == nil else { return }
@@ -73,25 +72,22 @@ private final class PlayerModel {
         async let progress = loadProgress()
         guard let item = await item else { return }
         player.replaceCurrentItem(with: item)
-        if let progress = await progress, !progress.completed, progress.value > 0 {
-            lastSavedSeconds = progress.value
-            await player.seek(to: CMTime(seconds: Double(progress.value), preferredTimescale: 1))
+        let resumeSeconds = await progress?.resumeSeconds
+        if let resumeSeconds {
+            await player.seek(to: CMTime(seconds: Double(resumeSeconds), preferredTimescale: 1))
         }
         isLoaded = true
         player.play()
-        observeProgress()
+        progressTracker = ProgressTracker(player: player, savedSeconds: resumeSeconds) { seconds in
+            try await session.withToken { try await NebulaAPI.saveProgress(episodeID: episode.id, seconds: seconds, token: $0) }
+        }
         await watchForAuthErrors()
     }
 
     func stop() {
         player.pause()
-        if let timeObserver {
-            player.removeTimeObserver(timeObserver)
-            self.timeObserver = nil
-        }
-        rateObserver?.cancel()
-        rateObserver = nil
-        saveProgress()
+        progressTracker?.stop()
+        progressTracker = nil
     }
 
     private func loadProgress() async -> Progress? {
@@ -101,33 +97,6 @@ private final class PlayerModel {
         } catch {
             logger.error("Loading progress failed: \(error, privacy: .public)")
             return nil
-        }
-    }
-
-    /// Matches the web player, which saves every 15 seconds of playback and whenever playback pauses.
-    private func observeProgress() {
-        timeObserver = player.addPeriodicTimeObserver(forInterval: CMTime(seconds: 15, preferredTimescale: 1), queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { self?.saveProgress() }
-        }
-        rateObserver = Task { [weak self, player] in
-            for await _ in NotificationCenter.default.notifications(named: AVPlayer.rateDidChangeNotification, object: player) {
-                guard let self else { return }
-                if player.rate == 0 { saveProgress() }
-            }
-        }
-    }
-
-    private func saveProgress() {
-        guard let episode, let session, player.currentItem?.status == .readyToPlay else { return }
-        let seconds = Int(player.currentTime().seconds.rounded(.down))
-        guard seconds != lastSavedSeconds else { return }
-        lastSavedSeconds = seconds
-        Task {
-            do {
-                try await session.withToken { try await NebulaAPI.saveProgress(episodeID: episode.id, seconds: seconds, token: $0) }
-            } catch {
-                logger.error("Saving progress failed: \(error, privacy: .public)")
-            }
         }
     }
 
@@ -189,6 +158,57 @@ private final class PlayerModel {
                 newItem.select(nil, in: newGroup)
             } else if let match {
                 newItem.select(match, in: newGroup)
+            }
+        }
+    }
+}
+
+/// Saves the playback position like the web player, every 15 seconds of playback and whenever playback pauses.
+@MainActor
+final class ProgressTracker {
+    typealias Save = (_ seconds: Int) async throws -> Void
+
+    private let player: AVPlayer
+    private let save: Save
+    private var savedSeconds: Int?
+    private var timeObserver: Any?
+    private var rateObserver: Task<Void, Never>?
+
+    init(player: AVPlayer, savedSeconds: Int?, save: @escaping Save) {
+        self.player = player
+        self.savedSeconds = savedSeconds
+        self.save = save
+        timeObserver = player.addPeriodicTimeObserver(forInterval: CMTime(seconds: 15, preferredTimescale: 1), queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.saveNow() }
+        }
+        rateObserver = Task { [weak self, player] in
+            for await _ in NotificationCenter.default.notifications(named: AVPlayer.rateDidChangeNotification, object: player) {
+                guard let self else { return }
+                if player.rate == 0 { saveNow() }
+            }
+        }
+    }
+
+    func stop() {
+        if let timeObserver {
+            player.removeTimeObserver(timeObserver)
+            self.timeObserver = nil
+        }
+        rateObserver?.cancel()
+        rateObserver = nil
+        saveNow()
+    }
+
+    private func saveNow() {
+        guard player.currentItem?.status == .readyToPlay else { return }
+        let seconds = Int(player.currentTime().seconds.rounded(.down))
+        guard seconds != savedSeconds else { return }
+        savedSeconds = seconds
+        Task {
+            do {
+                try await save(seconds)
+            } catch {
+                logger.error("Saving progress failed: \(error, privacy: .public)")
             }
         }
     }
