@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Player for Nebula</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="description" content="A native macOS app for watching Nebula videos and listening to Nebula podcasts.">
 <style>
   :root {
@@ -54,6 +56,8 @@
     padding-block: 24px;
     font-weight: 700;
   }
+  header.top .brand { display: flex; align-items: center; gap: 10px; }
+  header.top .brand img { width: 40px; height: 40px; margin: -4px; }
   header.top a { color: var(--ink); text-decoration: none; font-weight: 500; }
   header.top a:hover { color: var(--accent); }
 
@@ -182,7 +186,7 @@
 </head>
 <body>
   <header class="top wrap">
-    <span>Player for Nebula</span>
+    <span class="brand"><img src="icon.png" width="40" height="40" alt="">Player for Nebula</span>
     <a href="https://github.com/SeriousBug/mac-player-for-nebula">GitHub</a>
   </header>
 

@@ -1,3 +1,5 @@
+<img src="design/AppIcon.svg" width="128" height="128" alt="Player for Nebula icon">
+
 # Player for Nebula
 
 A native macOS app for [Nebula](https://nebula.tv).
