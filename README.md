@@ -1,10 +1,16 @@
 # Player for Nebula
 
-A native macOS app for watching videos on [Nebula](https://nebula.tv).
+A native macOS app for [Nebula](https://nebula.tv).
+Log into your Nebula account, watch videos, follow your favorite creators, and catch up on your watch later queue.
+Listen to podcasts, and discover new creators on Nebula.
+
+This is a fully native app including the whole interface and video player.
+Pretty much all features of Nebula are implemented besides classes.
+This is a significantly more lightweight way to browse, watch, and listen to Nebula since it doesn't require you run a full web app.
 
 ## Not affiliated with Nebula
 
-**This project is not affiliated with, endorsed by, or sponsored by Nebula or Standard Broadcast LLC.** "Nebula" is a trademark of its owner and is used here only to describe what the app works with.
+**This project is not affiliated with, endorsed by, or sponsored by Nebula, or Nebula Entertainment & Broadcasting LLC.** "Nebula" is a trademark of its owner and is used here only to describe what the app works with.
 
 You need your own Nebula subscription to use this app.
 
@@ -14,9 +20,11 @@ The app does not bypass any security measures. It does the same thing your web b
 
 - You sign in on the regular Nebula login page, shown inside the app.
 - The app uses the session from that sign-in to call the same APIs the Nebula website calls.
-- Videos play from the same streams the website plays, using the macOS video player.
+- Videos play from the same streams the website plays, using a native video player.
 
-The app does not download videos or remove DRM. It can't play anything your account can't already watch.
+The app does not download videos or remove DRM.
+The APIs this app relies on are internal and are subject to change, so this app may break at any time.
+If the app does break, let me know by filing a bug report on Github and I'll try to fix it.
 
 ## Features
 
