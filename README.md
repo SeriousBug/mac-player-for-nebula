@@ -16,6 +16,10 @@ You need your own Nebula subscription to use this app.
 
 ## How it works
 
+![Latest videos from followed channels](docs/screenshots/latest-videos.webp)
+
+![Exploring Nebula Originals](docs/screenshots/explore.webp)
+
 The app does not bypass any security measures. It does the same thing your web browser does when you watch Nebula at nebula.tv:
 
 - You sign in on the regular Nebula login page, shown inside the app.
