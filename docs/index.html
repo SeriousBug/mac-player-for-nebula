@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Player for Nebula</title>
+<meta name="description" content="A native macOS app for watching Nebula videos and listening to Nebula podcasts.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #eef0f3;
+    --ink: #16181d;
+    --muted: #5b6270;
+    --rule: #d5d9e0;
+    --accent: #2463eb;
+    --accent-ink: #ffffff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #151619;
+      --ink: #ecedef;
+      --muted: #9aa0aa;
+      --rule: #2b2d33;
+      --accent: #4c8dff;
+      --accent-ink: #0c1424;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font: 400 1.0625rem/1.55 "Schibsted Grotesk", system-ui, sans-serif;
+    overflow-x: hidden;
+  }
+  a { color: var(--accent); text-underline-offset: .18em; }
+  a:focus-visible, .download:focus-visible {
+    outline: 3px solid var(--accent);
+    outline-offset: 3px;
+    border-radius: 6px;
+  }
+  img { display: block; max-width: 100%; height: auto; }
+
+  .wrap {
+    width: min(1120px, 100% - 32px);
+    margin-inline: auto;
+  }
+
+  header.top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-block: 24px;
+    font-weight: 700;
+  }
+  header.top a { color: var(--ink); text-decoration: none; font-weight: 500; }
+  header.top a:hover { color: var(--accent); }
+
+  .hero { padding-block: 56px 0; }
+  .hero h1 {
+    margin: 0;
+    max-width: 12ch;
+    font-weight: 800;
+    font-size: clamp(2.75rem, 8vw, 6.25rem);
+    line-height: .95;
+    letter-spacing: -.035em;
+  }
+  .hero .lede {
+    margin: 28px 0 0;
+    max-width: 34rem;
+    font-size: 1.25rem;
+    line-height: 1.5;
+    color: var(--muted);
+  }
+  .cta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px 20px;
+    margin-top: 36px;
+  }
+  .download {
+    display: inline-block;
+    padding: 14px 26px;
+    border-radius: 999px;
+    background: var(--accent);
+    color: var(--accent-ink);
+    font-weight: 700;
+    font-size: 1.0625rem;
+    text-decoration: none;
+    transition: transform .15s ease;
+  }
+  .download:hover { transform: translateY(-1px); }
+  .download:active { transform: translateY(1px); }
+  .cta small { color: var(--muted); font-size: .9375rem; }
+
+  /* The screenshot bleeds past the right edge so it reads as a window sitting on the page, not a framed picture.
+     The image carries its own transparent margin and window shadow. */
+  .shot {
+    margin-top: 40px;
+    margin-left: -2.4%;
+    margin-right: calc(50% - 50vw);
+  }
+  .shot img {
+    width: 100%;
+    min-width: 720px;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .shot img { animation: rise .9s cubic-bezier(.2, .7, .2, 1) .15s both; }
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(40px); }
+    }
+  }
+
+  section { padding-block: 96px 0; }
+  section h2 {
+    margin: 0 0 32px;
+    font-size: clamp(1.75rem, 3.5vw, 2.5rem);
+    line-height: 1.1;
+    letter-spacing: -.02em;
+    font-weight: 800;
+  }
+
+  .features {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0 56px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .features li {
+    padding: 18px 0;
+    border-top: 1px solid var(--rule);
+  }
+  .features strong { display: block; font-weight: 700; }
+  .features span { color: var(--muted); }
+
+  .install {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 32px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    counter-reset: step;
+  }
+  .install li { counter-increment: step; }
+  .install li::before {
+    content: counter(step);
+    display: block;
+    margin-bottom: 12px;
+    font-size: 3.5rem;
+    font-weight: 800;
+    line-height: 1;
+    color: var(--accent);
+  }
+  .install strong { display: block; margin-bottom: 4px; }
+  .install p { margin: 0; color: var(--muted); max-width: 30ch; }
+
+  .prose { max-width: 40rem; }
+  .prose p { margin: 0 0 16px; }
+
+  footer {
+    margin-top: 112px;
+    padding-block: 32px 48px;
+    border-top: 1px solid var(--rule);
+    color: var(--muted);
+    font-size: .9375rem;
+  }
+  footer p { margin: 0 0 8px; max-width: 44rem; }
+
+  @media (max-width: 720px) {
+    .hero { padding-block: 32px 0; }
+    .shot { margin-top: 48px; }
+    section { padding-block: 72px 0; }
+    .features { grid-template-columns: 1fr; }
+    .install { grid-template-columns: 1fr; gap: 28px; }
+  }
+</style>
+</head>
+<body>
+  <header class="top wrap">
+    <span>Player for Nebula</span>
+    <a href="https://github.com/SeriousBug/mac-player-for-nebula">GitHub</a>
+  </header>
+
+  <main>
+    <div class="hero wrap">
+      <h1>Nebula, as a real Mac app.</h1>
+      <p class="lede">Watch videos, follow creators, and listen to podcasts from your Nebula subscription in a native macOS app with a native video player. No browser tab required.</p>
+      <div class="cta">
+        <a class="download" href="https://github.com/SeriousBug/mac-player-for-nebula/releases/latest/download/PlayerForNebula.dmg">Download for Mac</a>
+        <small>Free and open source. Requires macOS 26 or later.</small>
+      </div>
+      <div class="shot">
+        <img src="screenshots/latest-videos.webp" width="2000" height="913" alt="Player for Nebula showing a grid of the latest videos from followed channels, with a sidebar for videos and podcasts.">
+      </div>
+    </div>
+
+    <section class="wrap" aria-labelledby="features">
+      <h2 id="features">Everything you use Nebula for</h2>
+      <ul class="features">
+        <li><strong>Latest videos</strong><span>New uploads from the channels you follow, newest first.</span></li>
+        <li><strong>Explore</strong><span>Browse videos, channels, and podcasts by category, including Nebula Originals.</span></li>
+        <li><strong>Channels</strong><span>Follow and unfollow creators, and filter their videos down to Nebula exclusives.</span></li>
+        <li><strong>Watch later and history</strong><span>Save videos for later and find what you watched recently.</span></li>
+        <li><strong>Pick up where you left off</strong><span>Your progress saves as you watch and syncs with your Nebula account.</span></li>
+        <li><strong>Podcasts</strong><span>Latest episodes, followed podcasts, saved episodes, and listen history.</span></li>
+      </ul>
+    </section>
+
+    <section class="wrap" aria-labelledby="install">
+      <h2 id="install">Install</h2>
+      <ol class="install">
+        <li><strong>Download</strong><p>Get <a href="https://github.com/SeriousBug/mac-player-for-nebula/releases/latest/download/PlayerForNebula.dmg">PlayerForNebula.dmg</a> and open it.</p></li>
+        <li><strong>Drag to Applications</strong><p>Drag Player for Nebula onto the Applications folder in the window that opens.</p></li>
+        <li><strong>Sign in</strong><p>Open the app and sign in with your Nebula account.</p></li>
+      </ol>
+    </section>
+
+    <section class="wrap" aria-labelledby="how">
+      <h2 id="how">How it works</h2>
+      <div class="prose">
+        <p>You sign in on the regular Nebula login page, shown inside the app. The app then talks to Nebula the same way nebula.tv does in your browser, and plays videos from the same streams.</p>
+        <p>It doesn't download videos or get around any protections. You need your own Nebula subscription.</p>
+        <p>The app relies on Nebula's internal APIs, which can change without notice. If something breaks, <a href="https://github.com/SeriousBug/mac-player-for-nebula/issues">file an issue on GitHub</a>.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="wrap">
+    <p>Player for Nebula is not affiliated with, endorsed by, or sponsored by Nebula or Nebula Entertainment &amp; Broadcasting LLC. "Nebula" is a trademark of its owner.</p>
+    <p>MIT licensed. <a href="https://github.com/SeriousBug/mac-player-for-nebula">Source on GitHub</a>.</p>
+  </footer>
+</body>
+</html>
