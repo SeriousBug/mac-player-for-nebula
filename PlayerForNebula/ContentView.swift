@@ -31,6 +31,7 @@ enum LibraryTab: String, CaseIterable {
     case followedPodcasts
     case savedEpisodes
     case listenHistory
+    case classes
     case store
 
     var title: LocalizedStringKey {
@@ -44,6 +45,7 @@ enum LibraryTab: String, CaseIterable {
         case .followedPodcasts: "Followed Podcasts"
         case .savedEpisodes: "Saved Episodes"
         case .listenHistory: "Listen History"
+        case .classes: "Classes"
         case .store: "Store"
         }
     }
@@ -59,12 +61,14 @@ enum LibraryTab: String, CaseIterable {
         case .followedPodcasts: "mic"
         case .savedEpisodes: "bookmark"
         case .listenHistory: "clock.arrow.circlepath"
+        case .classes: "graduationcap"
         case .store: "bag"
         }
     }
 
     var externalURL: URL? {
         switch self {
+        case .classes: URL(string: "https://nebula.tv/classes?utm_source=player-for-nebula")
         case .store: URL(string: "https://store.nebula.tv/?utm_source=player-for-nebula")
         default: nil
         }
@@ -155,6 +159,7 @@ private struct LibraryView: View {
                     }
                 }
             }
+            tab(.classes) {}
             tab(.store) {}
         }
         .tabViewStyle(.sidebarAdaptable)
