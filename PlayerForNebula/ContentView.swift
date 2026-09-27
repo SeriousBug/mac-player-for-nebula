@@ -50,7 +50,7 @@ enum LibraryTab: String, CaseIterable {
 
     var externalURL: URL? {
         switch self {
-        case .store: URL(string: "https://store.nebula.tv")
+        case .store: URL(string: "https://store.nebula.tv/?utm_source=player-for-nebula")
         default: nil
         }
     }
