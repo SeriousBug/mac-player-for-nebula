@@ -163,10 +163,37 @@ private struct LibraryView: View {
             tab(.store) {}
         }
         .tabViewStyle(.sidebarAdaptable)
+        .background(SidebarStaysOpenOnResize())
     }
 
     private func tab(_ tab: LibraryTab, @ViewBuilder content: () -> some View) -> some TabContent<LibraryTab> {
         Tab(tab.title, systemImage: tab.systemImage, value: tab, content: content)
+    }
+}
+
+/// Leaving full screen briefly shrinks the window, which makes AppKit auto-collapse the sidebar.
+/// The split view autosaves that, so the sidebar would stay hidden on every later launch.
+private struct SidebarStaysOpenOnResize: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView { WindowObserver() }
+    func updateNSView(_ nsView: NSView, context: Context) {}
+
+    private final class WindowObserver: NSView {
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            // The split view is added to the window after this view.
+            DispatchQueue.main.async { [weak self] in
+                guard let splitView = self?.window?.contentView.flatMap(Self.splitView(in:)),
+                      let controller = splitView.delegate as? NSSplitViewController else { return }
+                for item in controller.splitViewItems where item.behavior == .sidebar {
+                    item.canCollapseFromWindowResize = false
+                }
+            }
+        }
+
+        private static func splitView(in view: NSView) -> NSSplitView? {
+            if let splitView = view as? NSSplitView { return splitView }
+            return view.subviews.lazy.compactMap(splitView(in:)).first
+        }
     }
 }
 
